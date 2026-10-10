@@ -1,0 +1,18 @@
+{
+    "Items": [
+        {
+            "name": {
+                "S": "Sarah"
+            },
+            "userId": {
+                "S": "12345"
+            },
+            "education": {
+                "S": "Florida State University"
+            }
+        }
+    ],
+    "Count": 1,
+    "ScannedCount": 1,
+    "ConsumedCapacity": null
+}

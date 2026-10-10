@@ -239,6 +239,11 @@ $RECYCLE.BIN/
 
 # Build folder
 
+# Local SAM artifacts and temporary demo configuration (never deploy).
+/.aws-sam/
+/.local-demo/
+/env.json
+
 */build/*
 
 # End of https://www.gitignore.io/api/osx,linux,python,windows,pycharm,visualstudiocode

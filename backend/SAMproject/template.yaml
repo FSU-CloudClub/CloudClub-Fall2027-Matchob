@@ -1,45 +1,103 @@
+
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  test
 
-  Sample SAM Template for test
-
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
-Globals:
-  Function:
-    Timeout: 3
-
-  Api:
-    TracingEnabled: true
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+
+  # Database for user profiles
+  MatchobUsersTable:
+    Type: AWS::DynamoDB::Table
     Properties:
-      CodeUri: hello_world/
+      TableName: MatchobUsers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
+  # Cognito User Pool
+  MatchobUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: matchob-dev-users
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+
+  # Frontend application client
+  MatchobUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref MatchobUserPool
+      ClientName: matchob-frontend
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      CallbackURLs:
+        - http://localhost:3000/auth/callback
+      LogoutURLs:
+        - http://localhost:3000/
+      SupportedIdentityProviders:
+        - COGNITO
+
+  # API Gateway with Cognito authorization
+  MatchobApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !GetAtt MatchobUserPool.Arn
+
+  # Lambda for GET /profile
+  GetProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/get-profile/
       Handler: app.lambda_handler
-      Runtime: python3.14
-      Architectures:
-      - x86_64
+      Runtime: python3.13
+      Timeout: 10
+
+      Environment:
+        Variables:
+          USERS_TABLE: !Ref MatchobUsersTable
+          DYNAMODB_ENDPOINT: ""
+
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref MatchobUsersTable
+
       Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
+        GetProfile:
+          Type: Api
           Properties:
-            Path: /hello
+            RestApiId: !Ref MatchobApi
+            Path: /profile
             Method: get
-
-
+  MatchobUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: matchob-dev-backend
+      UserPoolId: !Ref MatchobUserPool
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: API Gateway endpoint URL for Prod stage for Hello World 
-      function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/hello/"
-  HelloWorldFunction:
-    Description: Hello World Lambda Function ARN
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: Implicit IAM Role created for Hello World function
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  UserPoolId:
+    Value: !Ref MatchobUserPool
+
+  UserPoolClientId:
+    Value: !Ref MatchobUserPoolClient
+
+  ApiUrl:
+    Value: !Sub "https://${MatchobApi}.execute-api.${AWS::Region}.amazonaws.com/dev/profile"
