@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Analysis",
+  "type": "object",
+  "required": [
+    "requirement_id", "match", "original_bullet", "suggestion",
+    "reason", "status", "prompt_version"
+  ],
+  "properties": {
+    "requirement_id": {"type": "string"},
+    "match": {"enum": ["matched", "partial", "missing"]},
+    "original_bullet": {"type": "string"},
+    "suggestion": {"type": "string"},
+    "reason": {"type": "string"},
+    "status": {"enum": ["supported", "needs_confirmation", "unsupported"]},
+    "prompt_version": {"type": "string"},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "start", "end", "text", "tier"],
+        "properties": {
+          "source": {"enum": ["resume", "evidence"]},
+          "start": {"type": "integer"},
+          "end": {"type": "integer"},
+          "text": {"type": "string"},
+          "tier": {"enum": ["high", "medium_self_attested", "low"]}
+        }
+      }
+    }
+  }
+}
