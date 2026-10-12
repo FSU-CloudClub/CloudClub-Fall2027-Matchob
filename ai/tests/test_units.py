@@ -1,13 +1,24 @@
-"""Lane 5 tests: synonyms.json and normalize().
+"""Lane 5 tests: synonyms.json, normalize() and split_resume().
 
 Run from the repo root:  python -m unittest discover ai/tests -v
 """
 
 import re
 import unittest
+from pathlib import Path
 
 from ai.matching.normalize import SYNONYMS, normalize
+from ai.matching.units import split_resume
 
+# Lane 2's sample resume. The alex.txt tests are skipped until this file exists.
+ALEX_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "resumes" / "alex.txt"
+
+# PLACEHOLDER: once alex.txt is in, count its bullet lines (lines starting
+# with "-") by hand and put the number here. Until then, the count test is skipped.
+ALEX_BULLETS = None
+
+
+# ===================== normalize() and synonyms.json =====================
 
 class TestNormalize(unittest.TestCase):
 
@@ -82,6 +93,88 @@ class TestSynonymsFile(unittest.TestCase):
                 for alias in aliases:
                     found = re.search(r"\b" + re.escape(alias) + r"\b", name)
                     self.assertIsNone(found, f"name {name!r} contains alias {alias!r}")
+
+
+# ============================ split_resume() =============================
+
+# A small made-up resume covering the tricky cases: an indented bullet with
+# extra spaces, an empty "-" line, and a blank line between SKILLS and its line.
+SAMPLE = """ALEX KIM
+alex.kim@email.com | Tallahassee, FL
+
+EXPERIENCE
+Software Engineering Intern, Acme Corp | Summer 2026
+- Built a REST API in Python
+- Cut page load time by 40%
+
+PROJECTS
+  -   Wrote a resume parser
+-
+
+SKILLS
+
+Python, AWS, SQL
+"""
+
+
+class TestSplitResume(unittest.TestCase):
+    """Tests on the made-up SAMPLE resume above."""
+
+    def test_finds_every_bullet_and_the_skills_line(self):
+        texts = [u["text"] for u in split_resume(SAMPLE)]
+        self.assertEqual(texts, [
+            "Built a REST API in Python",
+            "Cut page load time by 40%",
+            "Wrote a resume parser",
+            "Python, AWS, SQL",
+        ])
+
+    def test_units_get_their_section_and_numbered_ids(self):
+        units = split_resume(SAMPLE)
+        self.assertEqual([u["section"] for u in units],
+                         ["experience", "experience", "projects", "skills"])
+        self.assertEqual([u["id"] for u in units], ["u1", "u2", "u3", "u4"])
+
+    def test_start_and_end_point_at_the_exact_text(self):
+        for line_break in ["\n", "\r\n"]:  # Mac/Linux and Windows
+            resume = SAMPLE.replace("\n", line_break)
+            for u in split_resume(resume):
+                with self.subTest(line_break=repr(line_break), id=u["id"]):
+                    self.assertEqual(resume[u["start"]:u["end"]], u["text"])
+
+    def test_all_caps_skills_line_is_not_a_heading(self):
+        units = split_resume("SKILLS\nAWS, SQL, GCP\n")
+        self.assertEqual(units, [
+            {"id": "u1", "section": "skills", "text": "AWS, SQL, GCP", "start": 7, "end": 20},
+        ])
+
+    def test_empty_resume_has_no_units(self):
+        self.assertEqual(split_resume(""), [])
+
+
+class TestSplitResumeOnAlex(unittest.TestCase):
+    """The checklist tests on Lane 2's alex.txt. Skipped until the file is added."""
+
+    def setUp(self):
+        if not ALEX_PATH.exists():
+            self.skipTest("alex.txt not added yet (Lane 2)")
+        self.resume = ALEX_PATH.read_text(encoding="utf-8")
+        self.units = split_resume(self.resume)
+
+    def test_unit_count_is_bullets_plus_skills_line(self):
+        if ALEX_BULLETS is None:
+            self.skipTest("set ALEX_BULLETS to the hand-counted number of bullets")
+        self.assertEqual(len(self.units), ALEX_BULLETS + 1)
+
+    def test_every_unit_slices_back_to_its_text(self):
+        for u in self.units:
+            with self.subTest(id=u["id"]):
+                self.assertEqual(self.resume[u["start"]:u["end"]], u["text"])
+
+    def test_bullet_under_experience_has_experience_section(self):
+        heading_at = self.resume.index("EXPERIENCE")
+        first_after = next(u for u in self.units if u["start"] > heading_at)
+        self.assertEqual(first_after["section"], "experience")
 
 
 if __name__ == "__main__":
