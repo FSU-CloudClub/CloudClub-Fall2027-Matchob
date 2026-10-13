@@ -77,6 +77,7 @@ class TestMocks(unittest.TestCase):
         self.assertNotRegex(ALEX.lower(), r"\bled\b")
         self.assertIn("Kubernetes", case("unsupported")["suggestion"])
         self.assertNotIn("kubernetes", ALEX.lower())
+        self.assertNotIn("terraform", ALEX.lower())
 
     def test_missing_has_no_suggestion_or_evidence(self):
         rec = case("missing")
