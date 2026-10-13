@@ -2,6 +2,18 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
+Globals:
+  Function:
+    Layers: 
+      - !Ref SharedLayer
+    Runtime: python3.13
+    Timeout: 10
+    Environment:
+      Variables:
+        USERS_TABLE: !Ref MatchobUsersTable
+        DYNAMODB_ENDPOINT: ""
+        S3_ENDPOINT: ""
+
 Resources:
 
   # Database for user profiles
@@ -68,13 +80,6 @@ Resources:
     Properties:
       CodeUri: src/get-profile/
       Handler: app.lambda_handler
-      Runtime: python3.13
-      Timeout: 10
-
-      Environment:
-        Variables:
-          USERS_TABLE: !Ref MatchobUsersTable
-          DYNAMODB_ENDPOINT: ""
 
       Policies:
         - DynamoDBReadPolicy:
@@ -92,6 +97,16 @@ Resources:
     Properties:
       Domain: matchob-dev-backend
       UserPoolId: !Ref MatchobUserPool
+  SharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: matchob-shared
+      ContentUri: src/shared
+      CompatibleRuntimes:
+        - python3.13
+    Metadata:
+      BuildMethod: python3.13
+
 Outputs:
   UserPoolId:
     Value: !Ref MatchobUserPool

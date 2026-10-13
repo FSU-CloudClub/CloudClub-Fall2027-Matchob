@@ -3,6 +3,7 @@ import json
 import os
 import boto3
 from botocore.exceptions import ClientError
+from matchob_common.auth import get_user_id
 
 # Initialize DynamoDB outside the handler
 dynamodb = boto3.resource(
@@ -17,13 +18,9 @@ def lambda_handler(event, context):
     print("USERS_TABLE:", os.environ.get("USERS_TABLE"))
     print("DYNAMODB_ENDPOINT:", os.environ.get("DYNAMODB_ENDPOINT"))
     # Extract authenticated user ID
-    claims = (
-        event.get("requestContext", {})
-        .get("authorizer", {})
-        .get("claims", {})
-    )
+    # Extract authenticated user ID (claims in AWS, X-Local-User header under sam local)
+    user_id = get_user_id(event)
 
-    user_id = claims.get("sub")
 
     if not user_id:
         return {
