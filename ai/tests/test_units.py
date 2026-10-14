@@ -10,12 +10,9 @@ from pathlib import Path
 from ai.matching.normalize import SYNONYMS, normalize
 from ai.matching.units import split_resume
 
-# Lane 2's sample resume. The alex.txt tests are skipped until this file exists.
+# Lane 2's sample resume (from noah/fake-resumes-and-mocks).
 ALEX_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "resumes" / "alex.txt"
 
-# PLACEHOLDER: once alex.txt is in, count its bullet lines (lines starting
-# with "-") by hand and put the number here. Until then, the count test is skipped.
-ALEX_BULLETS = None
 
 
 # ===================== normalize() and synonyms.json =====================
@@ -55,6 +52,11 @@ class TestNormalize(unittest.TestCase):
         for text, expected in cases:
             with self.subTest(text=text):
                 self.assertEqual(normalize(text), expected)
+
+    def test_dot_names_are_left_alone(self):
+        for text in ["Vue.js", "Next.js"]:
+            with self.subTest(text=text):
+                self.assertNotIn("javascript", normalize(text))
 
     def test_running_twice_changes_nothing(self):
         once = normalize("Built Node.js apps on AWS Lambda with PostgreSQL")
@@ -148,23 +150,30 @@ class TestSplitResume(unittest.TestCase):
             {"id": "u1", "section": "skills", "text": "AWS, SQL, GCP", "start": 7, "end": 20},
         ])
 
+    def test_empty_skills_section_does_not_swallow_next_heading(self):
+        units = split_resume("SKILLS\n\nEXPERIENCE\n- Built Python tools\n")
+        self.assertEqual(units, [
+            {"id": "u1", "section": "experience", "text": "Built Python tools", "start": 21, "end": 39},
+        ])
+
+    def test_dash_without_space_is_not_a_bullet(self):
+        self.assertEqual(split_resume("EXPERIENCE\n-5 degrees outside\n"), [])
+
     def test_empty_resume_has_no_units(self):
         self.assertEqual(split_resume(""), [])
 
 
 class TestSplitResumeOnAlex(unittest.TestCase):
-    """The checklist tests on Lane 2's alex.txt. Skipped until the file is added."""
+    """The checklist tests on Lane 2's alex.txt."""
 
     def setUp(self):
-        if not ALEX_PATH.exists():
-            self.skipTest("alex.txt not added yet (Lane 2)")
         self.resume = ALEX_PATH.read_text(encoding="utf-8")
         self.units = split_resume(self.resume)
 
     def test_unit_count_is_bullets_plus_skills_line(self):
-        if ALEX_BULLETS is None:
-            self.skipTest("set ALEX_BULLETS to the hand-counted number of bullets")
-        self.assertEqual(len(self.units), ALEX_BULLETS + 1)
+        # Count bullets with a simpler rule than split_resume, so the test checks it
+        bullets = sum(1 for line in self.resume.splitlines() if line.lstrip().startswith("- "))
+        self.assertEqual(len(self.units), bullets + 1)
 
     def test_every_unit_slices_back_to_its_text(self):
         for u in self.units:
