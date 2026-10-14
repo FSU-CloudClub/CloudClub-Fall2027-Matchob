@@ -9,6 +9,10 @@ Positions are counted in the exact string passed in, so slice that same string.
 """
 
 
+# Headings that can never be the skills line, even right under SKILLS.
+KNOWN_HEADINGS = {"education", "experience", "projects", "skills"}
+
+
 def split_resume(text: str) -> list[dict]:
     units = []
     section = None            # current section heading, lowercased ("experience")
@@ -27,7 +31,7 @@ def split_resume(text: str) -> list[dict]:
             continue  # blank line
 
         # Bullet: "- Built a REST API" -> unit text "Built a REST API"
-        if stripped.startswith("-"):
+        if stripped.startswith("- "):
             indent = len(content) - len(content.lstrip())  # spaces before the "-"
             after_dash = content[indent + 1:]
             gap = len(after_dash) - len(after_dash.lstrip())  # spaces after the "-"
@@ -40,7 +44,7 @@ def split_resume(text: str) -> list[dict]:
 
         # The first line under SKILLS is one unit. Checked before headings, so an
         # all-caps skills line like "AWS, SQL" isn't mistaken for a heading.
-        if expecting_skills:
+        if expecting_skills and stripped.lower() not in KNOWN_HEADINGS:
             start = line_start + len(content) - len(content.lstrip())
             units.append(_unit(units, section, stripped, start))
             expecting_skills = False
