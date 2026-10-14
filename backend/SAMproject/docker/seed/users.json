@@ -1,0 +1,13 @@
+{
+    "MatchobUsers": [
+        {
+            "PutRequest": {
+                "Item": {
+                    "userId":   { "S":  "12345" },
+                    "name":     { "S": "Sarah"},
+                    "education":{ "S":  "Florida State University"}
+                }
+            }
+        }
+    ]
+}
