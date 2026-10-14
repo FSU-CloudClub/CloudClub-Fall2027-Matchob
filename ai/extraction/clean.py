@@ -1,6 +1,6 @@
 import re
 
-
+# Regular expressions for identifying sections to skip in the job posting.
 _SKIP_HEADING = re.compile(
     r"(?:(?:(?:our|employee|company)\s+)?(?:benefits|perks)"
     r"(?:\s*(?:and|&|/)\s*(?:benefits|perks|compensation))?|"
@@ -10,6 +10,8 @@ _SKIP_HEADING = re.compile(
     r"legal(?:\s+.*)?|disclaimers?)",
     re.IGNORECASE,
 )
+
+# Regular expression for identifying job-related headings in the job posting.
 _JOB_HEADING = re.compile(
     r"(?:(?:(?:minimum|required|preferred|basic|technical)\s+)?"
     r"(?:qualifications|requirements|skills)|responsibilities|"
@@ -19,8 +21,10 @@ _JOB_HEADING = re.compile(
     re.IGNORECASE,
 )
 
-
 def clean_posting(text: str) -> list[dict]:
+    """
+    Clean a job posting by removing non-job lines and returning a list of dictionaries containing the cleaned lines along with their start and end positions in the original text.
+    """
     kept = []
     offset = 0
     skipping = False
@@ -45,5 +49,3 @@ def clean_posting(text: str) -> list[dict]:
         if not skipping:
             kept.append({"text": line, "start": start, "end": start + len(line)})
     return kept
-
-print(clean_posting("About us: world-leading finance company. We are looking for a software engineer with experience in Python and JavaScript. Benefits: 401k, flexible schedules. Experience with Go is a plus. Preferred: AWS."))
