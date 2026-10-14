@@ -30,5 +30,5 @@ def normalize(text: str) -> str:
     """Lowercase text and replace every alias with its standard name (whole words only)."""
     text = text.lower()
     for alias, name in ALIAS_PAIRS:
-        text = re.sub(r"\b" + re.escape(alias) + r"\b", name, text)
+        text = re.sub(r"(?<![\w.])" + re.escape(alias) + r"(?!\w)", name, text)
     return text
