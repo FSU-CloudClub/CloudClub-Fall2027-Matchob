@@ -1,6 +1,5 @@
 import re
 
-
 def priority(line: str) -> str:
     """
     Determine the priority of a line in a job posting.

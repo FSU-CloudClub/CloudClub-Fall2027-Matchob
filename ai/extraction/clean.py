@@ -1,6 +1,9 @@
 import re
 
-# Regular expressions for identifying sections to skip in the job posting.
+"""
+Regular expressions for identifying sections to skip in the
+job posting.
+"""
 _SKIP_HEADING = re.compile(
     r"(?:(?:(?:our|employee|company)\s+)?(?:benefits|perks)"
     r"(?:\s*(?:and|&|/)\s*(?:benefits|perks|compensation))?|"
@@ -11,7 +14,10 @@ _SKIP_HEADING = re.compile(
     re.IGNORECASE,
 )
 
-# Regular expression for identifying job-related headings in the job posting.
+"""
+Regular expression for identifying job-related headings in the
+job posting.
+"""
 _JOB_HEADING = re.compile(
     r"(?:(?:(?:minimum|required|preferred|basic|technical)\s+)?"
     r"(?:qualifications|requirements|skills)|responsibilities|"
