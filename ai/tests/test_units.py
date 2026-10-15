@@ -14,7 +14,6 @@ from ai.matching.units import split_resume
 ALEX_PATH = Path(__file__).resolve().parents[1] / "fixtures" / "resumes" / "alex.txt"
 
 
-
 # ===================== normalize() and synonyms.json =====================
 
 class TestNormalize(unittest.TestCase):
@@ -44,6 +43,10 @@ class TestNormalize(unittest.TestCase):
             ("Experience with JS, TypeScript.", "experience with javascript, typescript."),
             ("JS", "javascript"),
             ("Amazon S3 and AWS EC2", "s3 and ec2"),
+            # The same alias twice, and both DynamoDB spellings
+            ("JS and JS", "javascript and javascript"),
+            ("AWS Dynamo DB", "dynamodb"),
+            ("AWS DynamoDB", "dynamodb"),
             # Ordinary words and look-alikes stay untouched
             ("TS/SCI clearance required", "ts/sci clearance required"),
             ("Go to market", "go to market"),
@@ -56,7 +59,7 @@ class TestNormalize(unittest.TestCase):
     def test_dot_names_are_left_alone(self):
         for text in ["Vue.js", "Next.js"]:
             with self.subTest(text=text):
-                self.assertNotIn("javascript", normalize(text))
+                self.assertEqual(normalize(text), text.lower())
 
     def test_running_twice_changes_nothing(self):
         once = normalize("Built Node.js apps on AWS Lambda with PostgreSQL")
@@ -81,8 +84,8 @@ class TestSynonymsFile(unittest.TestCase):
                 seen.add(alias)
 
     def test_aliases_start_and_end_with_a_letter_or_number(self):
-        # The \b whole-word rule only works next to letters and numbers,
-        # which is why C++ and C# are left out.
+        # The whole-word rule only works when an alias starts and ends with a
+        # letter or number, which is why C++ and C# are left out.
         for aliases in SYNONYMS.values():
             for alias in aliases:
                 self.assertTrue(alias[0].isalnum() and alias[-1].isalnum(), alias)
@@ -93,7 +96,7 @@ class TestSynonymsFile(unittest.TestCase):
         for name in SYNONYMS:
             for aliases in SYNONYMS.values():
                 for alias in aliases:
-                    found = re.search(r"\b" + re.escape(alias) + r"\b", name)
+                    found = re.search(r"(?<![\w.])" + re.escape(alias) + r"(?!\w)", name)
                     self.assertIsNone(found, f"name {name!r} contains alias {alias!r}")
 
 
@@ -154,6 +157,12 @@ class TestSplitResume(unittest.TestCase):
         units = split_resume("SKILLS\n\nEXPERIENCE\n- Built Python tools\n")
         self.assertEqual(units, [
             {"id": "u1", "section": "experience", "text": "Built Python tools", "start": 21, "end": 39},
+        ])
+
+    def test_empty_bullet_does_not_steal_the_skills_line(self):
+        units = split_resume("SKILLS\n- \nPython, SQL\n")
+        self.assertEqual(units, [
+            {"id": "u1", "section": "skills", "text": "Python, SQL", "start": 10, "end": 21},
         ])
 
     def test_dash_without_space_is_not_a_bullet(self):
