@@ -1,6 +1,7 @@
 """Start the Matchob local backend: Docker Compose (DynamoDB + S3) + sam local start-api
 
 Usage:
+    export DOCKER_HOST="$(docker context inspect --format '{{.Endpoints.docker.Host}}')" # Tell SAM where to connect to Docker by exporting the active Docker context's endpoint.
     python dev.py           # Starts everything, Ctrl+C stops it all
     python dev.py --keep    # leave the Compose containers running after Ctrl+C
 
