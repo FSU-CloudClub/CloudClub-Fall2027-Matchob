@@ -27,8 +27,8 @@ def split_resume(text: str) -> list[dict]:
         content = line.rstrip("\r\n")  # the line without its line break
         stripped = content.strip()
 
-        if not stripped:
-            continue  # blank line
+        if not stripped or stripped == "-":
+            continue  # blank line or an empty bullet
 
         # Bullet: "- Built a REST API" -> unit text "Built a REST API"
         if stripped.startswith("- "):
@@ -36,9 +36,8 @@ def split_resume(text: str) -> list[dict]:
             after_dash = content[indent + 1:]
             gap = len(after_dash) - len(after_dash.lstrip())  # spaces after the "-"
             unit_text = after_dash.strip()
-            if unit_text:
-                start = line_start + indent + 1 + gap
-                units.append(_unit(units, section, unit_text, start))
+            start = line_start + indent + 1 + gap
+            units.append(_unit(units, section, unit_text, start))
             expecting_skills = False
             continue
 
