@@ -15,7 +15,7 @@
   "lambda": ["aws lambda"],
   "s3": ["amazon s3", "aws s3", "simple storage service", "amazon simple storage service"],
   "ec2": ["amazon ec2", "aws ec2", "elastic compute cloud", "amazon elastic compute cloud"],
-  "dynamodb": ["amazon dynamodb", "aws dynamodb", "dynamo db"],
+  "dynamodb": ["amazon dynamodb", "aws dynamodb", "dynamo db", "aws dynamo db", "amazon dynamo db"],
   "bedrock": ["amazon bedrock", "aws bedrock"],
   "api gateway": ["amazon api gateway", "aws api gateway"],
   "gcp": ["google cloud platform", "google cloud"],
