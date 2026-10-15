@@ -75,6 +75,26 @@ def set_docker_host(docker):
         print(f"[dev] set DOCKER_HOST={host} (from the active Docker context)")
 
 
+def port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def remove_network_containers(docker):
+    """Remove containers still attached to the network (e.g. sam's Lambda container).
+
+    docker compose down only removes its own containers, and a leftover sam
+    container keeps the matchob-local network "in use".
+    """
+    out = subprocess.run(
+        [docker, "ps", "-aq", "--filter", f"network={NETWORK}"],
+        capture_output=True, text=True,
+    )
+    ids = out.stdout.split()
+    if ids:
+        subprocess.run([docker, "rm", "-f", *ids], capture_output=True)
+
+
 def copy_if_missing(example, target):
     src, dst = ROOT / example, ROOT / target
     if dst.exists():
@@ -140,6 +160,10 @@ def main():
     copy_if_missing(".env.example", ".env")
     copy_if_missing("env.example.json", "env.json")
 
+    if port_in_use(API_PORT):
+        fail(f"Port {API_PORT} is already in use. Stop the other `dev.py`/`sam local` "
+             f"(find it with `lsof -i :{API_PORT}`) and try again.")
+
     # 3. Start DynamoDB + S3 fresh, then wait for the seed step
     run([docker, "compose", "down", "--remove-orphans"], check=False)
     run([docker, "compose", "up", "-d"])
@@ -193,6 +217,7 @@ def main():
             print("\n[dev] containers left running. Stop them with: docker compose down")
         else:
             print("\n[dev] stopping containers...")
+            remove_network_containers(docker)
             subprocess.run([docker, "compose", "down"], cwd=ROOT)
 
 
