@@ -9,6 +9,7 @@ If it fails, the API and containers are left running so you can debug.
 """
 
 import argparse
+import os
 import shutil
 import socket
 import subprocess
@@ -52,6 +53,26 @@ def has_python_313():
         if "3.13" in (out.stdout + out.stderr):
             return True
     return False
+
+
+def set_docker_host(docker):
+    """Point SAM at the same Docker the `docker` CLI uses.
+
+    SAM ignores Docker contexts and only checks DOCKER_HOST or /var/run/docker.sock,
+    which Docker Desktop (Mac), Colima, and Rancher Desktop don't always create.
+    An existing DOCKER_HOST is left alone so developers can override it.
+    """
+    if os.environ.get("DOCKER_HOST"):
+        print(f"[dev] using DOCKER_HOST={os.environ['DOCKER_HOST']}")
+        return
+    out = subprocess.run(
+        [docker, "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"],
+        capture_output=True, text=True,
+    )
+    host = out.stdout.strip()
+    if out.returncode == 0 and host:
+        os.environ["DOCKER_HOST"] = host
+        print(f"[dev] set DOCKER_HOST={host} (from the active Docker context)")
 
 
 def copy_if_missing(example, target):
@@ -113,6 +134,7 @@ def main():
     sam = require("sam", "Install the AWS SAM CLI.")
     if subprocess.run([docker, "info"], capture_output=True).returncode != 0:
         fail("Docker is installed but not running. Start Docker Desktop.")
+    set_docker_host(docker)
 
     # 2. Create env files from the examples if they don't exist
     copy_if_missing(".env.example", ".env")
