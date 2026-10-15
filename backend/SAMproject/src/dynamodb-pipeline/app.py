@@ -24,16 +24,16 @@ def get_profile():
         return {"error": "Unauthorized"}, 401                       # (body, status) tuple
 
     try:
-        item = table.get_item(Key={"userId": user_id}).get("Item")  # read profile
+        response = table.get_item(Key={"userId": user_id} )  # read profile
     except ClientError:
         logger.exception("dynamodb get_item failed")                # logs the stack trace as JSON
         return {"error": "Internal server error"}, 500              # generic message to the client
 
-    if item is None:                                                # no profile yet
+    if response is None:                                                # no profile yet
         return {"error": "Profile not found"}, 404
 
     logger.info("profile fetched", extra={"user_id": user_id})      # extra = searchable fields
-    return item                                                     # plain dict → 200 + JSON body
+    return response                                                     # plain dict → 200 + JSON body
 
 # 4. Entry point: always exactly this
 @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)  # adds request ID, cold_start to logs
