@@ -21,8 +21,8 @@ for name, aliases in SYNONYMS.items():
     for alias in aliases:
         ALIAS_PAIRS.append((alias, name))
 
-# Longest alias first, so "node.js" is replaced before "js" can turn it
-# into "node.javascript".
+# Longest alias first, so "google cloud platform" is replaced before
+# "google cloud" can turn it into "gcp platform".
 ALIAS_PAIRS.sort(key=lambda pair: len(pair[0]), reverse=True)
 
 

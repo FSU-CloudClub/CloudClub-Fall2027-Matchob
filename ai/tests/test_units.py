@@ -33,7 +33,7 @@ class TestNormalize(unittest.TestCase):
 
     def test_more_cases(self):
         cases = [
-            # Longest alias wins, so "node.js" never becomes "node.javascript"
+           # Longest alias wins, so "google cloud platform" never becomes "gcp platform"
             ("Built Node.js apps", "built node apps"),
             ("React JS and React.js", "react and react"),
             ("Google Cloud Platform", "gcp"),
@@ -91,8 +91,8 @@ class TestSynonymsFile(unittest.TestCase):
                 self.assertTrue(alias[0].isalnum() and alias[-1].isalnum(), alias)
 
     def test_no_standard_name_contains_an_alias(self):
-        # If a name contained an alias, a later replacement would mangle it.
-        # Example: a name "node.js" would become "node.javascript".
+        # If a name contained an alias, a later replacement would mangle it
+         # Example: a name "react js" would become "react javascript".
         for name in SYNONYMS:
             for aliases in SYNONYMS.values():
                 for alias in aliases:
