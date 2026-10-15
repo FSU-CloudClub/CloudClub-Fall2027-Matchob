@@ -9,6 +9,7 @@ If it fails, the API and containers are left running so you can debug.
 """
 
 import argparse
+import os
 import shutil
 import socket
 import subprocess
@@ -52,6 +53,46 @@ def has_python_313():
         if "3.13" in (out.stdout + out.stderr):
             return True
     return False
+
+
+def set_docker_host(docker):
+    """Point SAM at the same Docker the `docker` CLI uses.
+
+    SAM ignores Docker contexts and only checks DOCKER_HOST or /var/run/docker.sock,
+    which Docker Desktop (Mac), Colima, and Rancher Desktop don't always create.
+    An existing DOCKER_HOST is left alone so developers can override it.
+    """
+    if os.environ.get("DOCKER_HOST"):
+        print(f"[dev] using DOCKER_HOST={os.environ['DOCKER_HOST']}")
+        return
+    out = subprocess.run(
+        [docker, "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"],
+        capture_output=True, text=True,
+    )
+    host = out.stdout.strip()
+    if out.returncode == 0 and host:
+        os.environ["DOCKER_HOST"] = host
+        print(f"[dev] set DOCKER_HOST={host} (from the active Docker context)")
+
+
+def port_in_use(port):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
+
+
+def remove_network_containers(docker):
+    """Remove containers still attached to the network (e.g. sam's Lambda container).
+
+    docker compose down only removes its own containers, and a leftover sam
+    container keeps the matchob-local network "in use".
+    """
+    out = subprocess.run(
+        [docker, "ps", "-aq", "--filter", f"network={NETWORK}"],
+        capture_output=True, text=True,
+    )
+    ids = out.stdout.split()
+    if ids:
+        subprocess.run([docker, "rm", "-f", *ids], capture_output=True)
 
 
 def copy_if_missing(example, target):
@@ -113,10 +154,15 @@ def main():
     sam = require("sam", "Install the AWS SAM CLI.")
     if subprocess.run([docker, "info"], capture_output=True).returncode != 0:
         fail("Docker is installed but not running. Start Docker Desktop.")
+    set_docker_host(docker)
 
     # 2. Create env files from the examples if they don't exist
     copy_if_missing(".env.example", ".env")
     copy_if_missing("env.example.json", "env.json")
+
+    if port_in_use(API_PORT):
+        fail(f"Port {API_PORT} is already in use. Stop the other `dev.py`/`sam local` "
+             f"(find it with `lsof -i :{API_PORT}`) and try again.")
 
     # 3. Start DynamoDB + S3 fresh, then wait for the seed step
     run([docker, "compose", "down", "--remove-orphans"], check=False)
@@ -171,6 +217,7 @@ def main():
             print("\n[dev] containers left running. Stop them with: docker compose down")
         else:
             print("\n[dev] stopping containers...")
+            remove_network_containers(docker)
             subprocess.run([docker, "compose", "down"], cwd=ROOT)
 
 
