@@ -52,6 +52,8 @@ body { margin: 0; }
 
 .button:hover { background: #1c5544; }
 .button:focus-visible { outline: 3px solid #8acdb0; outline-offset: 2px; }
+.button:disabled { opacity: .55; cursor: default; }
+.button:disabled:hover { background: #246b55; }
 .button-secondary { background: #e6eee9; color: #1c3430; }
 .button-secondary:hover { background: #d6e4da; }
 .navigation { display: flex; justify-content: space-between; gap: 12px; }

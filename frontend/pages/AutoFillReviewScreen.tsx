@@ -1,4 +1,5 @@
 export function AutoFillReviewScreen() {
+  // TODO: Sprint 1 - Extension Autofill UI: design the review screen after the UI contract is agreed.
   return (
     <section className="screen">
       <p className="eyebrow">Coming soon</p>

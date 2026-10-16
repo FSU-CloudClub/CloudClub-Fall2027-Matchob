@@ -1,8 +1,13 @@
-// Small starting shapes; expand these when the MVP data contract is agreed on.
 export type Resume = {
   id: string;
-  fileName: string;
-  text?: string;
+  name: string;
+  tags: string[];
+  uploadedAt: string;
+};
+
+export type UploadUrlResponse = {
+  resumeId: string;
+  uploadUrl: string;
 };
 
 export type JobDescription = {

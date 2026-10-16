@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { Button } from '../../components/Button';
+import { ResumeVault } from '../../features/resumes/ResumeVault';
 import { AutoFillReviewScreen } from '../../pages/AutoFillReviewScreen';
 import { JobDescriptionScreen } from '../../pages/JobDescriptionScreen';
 import { LandingScreen } from '../../pages/LandingScreen';
 import { RecommendationReviewScreen } from '../../pages/RecommendationReviewScreen';
-import { ResumeUploadScreen } from '../../pages/ResumeUploadScreen';
 import { SupportingContextScreen } from '../../pages/SupportingContextScreen';
 import { flowSteps } from '../../utils/flow';
 
 const screens = [
   LandingScreen,
-  ResumeUploadScreen,
+  ResumeVault,
   JobDescriptionScreen,
   SupportingContextScreen,
   RecommendationReviewScreen,
@@ -18,7 +18,7 @@ const screens = [
 ];
 
 export function App() {
-  // Local navigation only. Future work can replace this with real form state.
+  // TODO: Sprint 1 - Frontend Layout + Nav: replace preview steps with product navigation.
   const [step, setStep] = useState(0);
   const Screen = screens[step] ?? LandingScreen;
 
