@@ -150,7 +150,125 @@ def find_scope_words(text: str) -> set[str]:
     return {SCOPE[w] for w in _words(text) if w in SCOPE}
 
 
+# Time units, so "5 hours a week" is not "5 hours a day". Adjective and adverb forms count too.
+TIME_FORMS = {
+    "millisecond": "millisecond milliseconds",
+    "second": "second seconds secs",
+    "minute": "minute minutes mins",
+    "hour": "hour hours hourly hr hrs",
+    "day": "day days daily",
+    "week": "week weeks weekly wk wks",
+    "month": "month months monthly",
+    "quarter": "quarter quarters quarterly",
+    "semester": "semester semesters",
+    "year": "year years yearly annually annual yr yrs",
+}
+TIME = {form: name for name, forms in TIME_FORMS.items() for form in forms.split()}
+
+# Verbs that claim a result. Bare "drive", "drove" and "lead" are left out as too ambiguous.
+OUTCOME_FORMS = {
+    "increase": "increase increases increased increasing",
+    "improve": "improve improves improved improving",
+    "reduce": "reduce reduces reduced reducing",
+    "cut": "cut cuts cutting",
+    "save": "save saves saved saving",
+    "boost": "boost boosts boosted boosting",
+    "grow": "grow grows grew grown growing",
+    "raise": "raise raises raised raising",
+    "lower": "lower lowers lowered lowering",
+    "decrease": "decrease decreases decreased decreasing",
+    "double": "double doubles doubled doubling",
+    "triple": "triple triples tripled tripling",
+    "accelerate": "accelerate accelerates accelerated accelerating",
+    "expand": "expand expands expanded expanding",
+    "generate": "generate generates generated generating",
+    "achieve": "achieve achieves achieved achieving",
+    "eliminate": "eliminate eliminates eliminated eliminating",
+    "streamline": "streamline streamlines streamlined streamlining",
+    "optimize": "optimize optimizes optimized optimizing optimise optimises optimised optimising",
+    "enhance": "enhance enhances enhanced enhancing",
+    "maximize": "maximize maximizes maximized maximizing maximise maximises maximised maximising",
+    "minimize": "minimize minimizes minimized minimizing minimise minimises minimised minimising",
+    "slash": "slash slashes slashed slashing",
+    "shorten": "shorten shortens shortened shortening",
+    "halve": "halve halves halved halving",
+    "exceed": "exceed exceeds exceeded exceeding",
+    "surpass": "surpass surpasses surpassed surpassing",
+    "prevent": "prevent prevents prevented preventing",
+    # The nouns "result" and "results" are left out: "showed test results" claims nothing.
+    "result": "resulted resulting",
+}
+OUTCOME = {form: name for name, forms in OUTCOME_FORMS.items() for form in forms.split()}
+
+# Words that say someone else did the main work. Dropping them claims the whole job.
+HELP_FORMS = {
+    "helped": "help helps helped helping",
+    "assisted": "assist assists assisted assisting",
+    "contributed": "contribute contributes contributed contributing",
+    "participated": "participate participates participated participating",
+}
+HELP = {form: name for name, forms in HELP_FORMS.items() for form in forms.split()}
+
+
+# Short forms that are units only right after a number: "5 ms", but not "an MS in Computer Science".
+AFTER_NUMBER = {"ms": "millisecond", "sec": "second", "min": "minute"}
+
+
+def find_time_units(text: str) -> set[str]:
+    """Which time units appear, by name ("weekly" -> "week"), inside hyphenated words too
+    ("hour-long", "5-day"), except the idiom "day-to-day"."""
+    pieces = [p for w in _words(text) if w != "day-to-day" for p in w.split("-")]
+    # "5 ms", "5-ms" and "five ms" alike.
+    short = re.findall(rf"(?:\d|\b(?:{'|'.join(NUMBER_WORDS)}))[ -]?(ms|sec|min)\b", clean(text).casefold())
+    return {TIME[p] for p in pieces if p in TIME} | {AFTER_NUMBER[s] for s in short}
+
+
+def find_outcomes(text: str) -> set[str]:
+    """Which result verbs appear, by name ("cutting" -> "cut"). The last part of a hyphenated
+    word counts ("cost-saving"), the first does not ("double-checked")."""
+    return {OUTCOME[w.split("-")[-1]] for w in _words(text) if w.split("-")[-1] in OUTCOME}
+
+
+def find_help_words(text: str) -> list[str]:
+    """Every helping word, by name ("assisting" -> "assisted"), once per use, so dropping
+    "Helped" from "Helped migrate help desk reports" still leaves one fewer."""
+    return [HELP[w] for w in _words(text) if w in HELP]
+
+
 def find_titles(text: str) -> set[str]:
     """Which job titles appear as whole words. A hyphenated title stays whole, so "co-founder"
     is a title of its own and not the same claim as "founder"."""
     return {w for w in _words(text) if w.split("-")[-1] in TITLES}
+
+
+# Common tools that synonyms.json lacks. Everyday words (go, r, spring, swift, rust) are left out.
+EXTRA_TOOLS = {
+    "docker", "terraform", "git", "github", "github actions", "gitlab", "jenkins", "ansible",
+    "flask", "django", "fastapi", "angular", "vue", "svelte", "linux", "bash", "powershell",
+    "tableau", "power bi", "pandas", "numpy", "matplotlib", "jupyter", "pytest", "sqlite",
+    "redis", "kafka", "spark", "hadoop", "snowflake", "jira", "figma", "cloudformation",
+    "sagemaker", "bigquery", "firebase", "nginx", "helm", "kubectl", "pulumi", "ios",
+    "android", "jquery", "kotlin", "salesforce", "c++", "c#",
+}
+
+
+def find_tools(text: str) -> set[str]:
+    """Known tools and aliases, without discarding words inside a multiword alias.
+
+    "AWS Lambda" finds both aws and lambda. Verbs and files count too ("dockerized", "Dockerfile").
+    Ambiguous "go" counts as golang only after "in", "with" or "using".
+    """
+    # Lane 7's quantities and scope checks work before Lane 5's synonyms have merged.
+    from ai.matching.normalize import SYNONYMS
+
+    text = clean(text).casefold()
+    found = set()
+    for name in set(SYNONYMS) | EXTRA_TOOLS:
+        aliases = [name, *SYNONYMS.get(name, [])]
+        pattern = (r"(?<![\w.])(?:" + "|".join(re.escape(a) for a in aliases)
+                   + r")(?:i[sz](?:e|ed|es|ing)|files?)?(?![\w+#])")
+        if re.search(pattern, text):
+            found.add(name)
+    if re.search(r"\b(?:in|with|using)\s+go\b", text):
+        found.add("golang")
+    return found
