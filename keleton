@@ -1,0 +1,16 @@
+ frontend/README.md                                 | 32 [32m+++++++++++++[m[31m----[m
+ frontend/entrypoints/popup/App.tsx                 |  6 [32m++[m[31m--[m
+ frontend/entrypoints/popup/style.css               |  2 [32m++[m
+ frontend/features/resumes/ResumeDeleteDialog.tsx   |  4 [32m+++[m
+ .../features/resumes/ResumePreviewDownload.tsx     |  4 [32m+++[m
+ frontend/features/resumes/ResumeTagsRename.tsx     |  4 [32m+++[m
+ frontend/features/resumes/ResumeUpload.tsx         |  6 [32m++++[m
+ frontend/features/resumes/ResumeVault.tsx          | 13 [32m+++++++[m
+ frontend/mocks/resumes.ts                          | 11 [32m++++++[m
+ frontend/pages/AutoFillReviewScreen.tsx            |  1 [32m+[m
+ frontend/pages/ResumeUploadScreen.tsx              |  9 [31m-----[m
+ frontend/services/README.md                        | 14 [32m++++++[m[31m--[m
+ frontend/services/resumeApi.ts                     | 42 [32m++++++++++++++++++++++[m
+ frontend/types/index.ts                            | 11 [32m++++[m[31m--[m
+ frontend/utils/flow.ts                             |  2 [32m+[m[31m-[m
+ 15 files changed, 136 insertions(+), 25 deletions(-)
