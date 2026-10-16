@@ -24,9 +24,6 @@ class TestMocks(unittest.TestCase):
         self.assertEqual([p.stem for p in MOCKS], ["empty", "full_analysis", "missing",
                                                    "needs_confirmation", "supported", "unsupported"])
 
-    # Once Lane 1's contract is merged, delete the skipUnless line below. While it's there, a missing or
-    # renamed contract file makes this test say "skipped" forever instead of failing.
-    @unittest.skipUnless((CONTRACTS / "analysis.schema.json").exists(), "Lane 1's contract isn't merged yet")
     def test_every_mock_matches_the_contract(self):
         schema = {n: load(CONTRACTS / f"{n}.schema.json") for n in ("analysis", "requirement", "recommendation")}
         for path in MOCKS:
