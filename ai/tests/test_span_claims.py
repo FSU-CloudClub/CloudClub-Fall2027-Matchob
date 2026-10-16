@@ -1,6 +1,7 @@
 import unittest
 
-from ai.guardrails.claims import find_numbers, find_scope_words, find_titles
+from ai.guardrails.claims import (find_help_words, find_numbers, find_outcomes, find_scope_words, find_time_units,
+                                  find_titles, find_tools)
 from ai.guardrails.span_check import span_exists
 from ai.guardrails.text import clean
 
@@ -202,6 +203,35 @@ class TestFindScopeWords(unittest.TestCase):
         self.assertEqual(find_scope_words("Scheduled meetings"), set())
 
 
+class TestFindTools(unittest.TestCase):
+    def test_first_word_lowercase_and_mixed_case_tools(self):
+        for text, expected in (("Pulumi deployments", {"pulumi"}),
+                               ("used helm and kubectl", {"helm", "kubectl"}),
+                               ("iOS app using jQuery", {"ios", "jquery"}),
+                               ("Dockerized a Dockerfile", {"docker"}),
+                               ("C++ and C#", {"c++", "c#"})):
+            with self.subTest(text=text):
+                self.assertEqual(find_tools(text), expected)
+
+    def test_multiword_alias_does_not_lose_its_provider(self):
+        self.assertEqual(find_tools("AWS Lambda"), {"aws", "lambda"})
+        self.assertEqual(find_tools("Amazon Web Services Lambda"), {"aws", "lambda"})
+
+    def test_go_language_context_and_whole_names(self):
+        self.assertEqual(find_tools("Built a tool in go"), {"golang"})
+        self.assertEqual(find_tools("go through Google Sheets tutorials"), set())
+        self.assertEqual(find_tools("Scheduled goings and developed a gitbook"), set())
+
+    def test_synonyms_are_mapped(self):
+        self.assertEqual(find_tools("deployed with Kubernetes and JS"), {"kubernetes", "javascript"})
+        self.assertEqual(find_tools("Set up automated deployments"), {"ci/cd"})
+
+    def test_extra_tools(self):
+        self.assertEqual(find_tools("Packaged it with Docker"), {"docker"})
+
+    def test_no_tools(self):
+        self.assertEqual(find_tools("Went to the store"), set())
+
 
 class TestFindTitles(unittest.TestCase):
     def test_hyphenated_title_stays_whole(self):
@@ -213,3 +243,66 @@ class TestFindTitles(unittest.TestCase):
         self.assertEqual(find_titles("Supervisor at the campus office"), {"supervisor"})
         self.assertEqual(find_titles("worked as software engineer"), {"engineer"})
         self.assertEqual(find_titles("Worked with engineers and interned"), set())
+
+
+class TestFindTimeUnits(unittest.TestCase):
+    def test_forms_map_to_one_name(self):
+        for text, unit in (("5 hours a week", "week"), ("weekly", "week"), ("Every Day", "day"),
+                           ("daily", "day"), ("hourly", "hour"), ("annually", "year"),
+                           ("annual report", "year"), ("two semesters", "semester"),
+                           ("each quarter", "quarter"), ("monthly", "month")):
+            with self.subTest(text=text):
+                self.assertIn(unit, find_time_units(text))
+
+    def test_hyphenated_and_unrelated_words_are_not_units(self):
+        self.assertEqual(find_time_units("day-to-day tasks and a weekend shift"), set())
+
+
+    def test_short_forms_and_milliseconds(self):
+        for text, unit in (("5 hrs", "hour"), ("2 yrs", "year"), ("3 wks", "week"),
+                           ("10 mins", "minute"), ("200 milliseconds", "millisecond")):
+            with self.subTest(text=text):
+                self.assertEqual(find_time_units(text), {unit})
+
+    def test_short_forms_only_after_a_number(self):
+        self.assertEqual(find_time_units("cut it to 5 ms, then 5ms"), {"millisecond"})
+        self.assertEqual(find_time_units("5 min and 30 sec"), {"minute", "second"})
+        self.assertEqual(find_time_units("Earned an MS in Computer Science at min cost"), set())
+
+    def test_units_inside_hyphenated_words(self):
+        for text, unit in (("hour-long sessions", "hour"), ("a two-week sprint", "week"),
+                           ("5-day workshop", "day")):
+            with self.subTest(text=text):
+                self.assertEqual(find_time_units(text), {unit})
+
+
+class TestFindOutcomes(unittest.TestCase):
+    def test_forms_and_irregulars_map_to_one_name(self):
+        for text, outcome in (("cutting costs", "cut"), ("Cut costs", "cut"), ("grew by half", "grow"),
+                              ("has grown", "grow"), ("saved time", "save"), ("Increased sales", "increase"),
+                              ("optimising queries", "optimize"), ("resulted in", "result"),
+                              ("doubling output", "double")):
+            with self.subTest(text=text):
+                self.assertIn(outcome, find_outcomes(text))
+
+    def test_ambiguous_words_are_left_out(self):
+        self.assertEqual(find_outcomes("Drove the van and lead a team; a cutter, savings, results-driven"), set())
+
+    def test_more_result_verbs(self):
+        for text, outcome in (("slashing costs", "slash"), ("shortened the wait", "shorten"),
+                              ("halved errors", "halve"), ("exceeded the goal", "exceed"),
+                              ("prevented outages", "prevent")):
+            with self.subTest(text=text):
+                self.assertEqual(find_outcomes(text), {outcome})
+
+    def test_hyphenated_words_and_the_noun_results(self):
+        self.assertEqual(find_outcomes("a cost-saving script"), {"save"})
+        self.assertEqual(find_outcomes("double-checked the test results"), set())
+
+
+class TestFindHelpWords(unittest.TestCase):
+    def test_forms_map_to_one_name(self):
+        self.assertEqual(find_help_words("Helping and assisted, then contributing"),
+                         ["helped", "assisted", "contributed"])
+        self.assertEqual(find_help_words("Helped migrate help desk reports"), ["helped", "helped"])
+        self.assertEqual(find_help_words("Built the app"), [])
