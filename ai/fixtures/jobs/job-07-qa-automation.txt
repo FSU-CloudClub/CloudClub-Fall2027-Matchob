@@ -1,0 +1,20 @@
+QA Automation Engineer - Vectorline Software
+
+About the role
+Our quality team keeps releases safe for millions of users. You will build and maintain the automated tests that run on every pull request.
+
+Requirements
+- Experience writing automated tests in Python
+- Familiarity with Selenium for browser testing
+- Understanding of REST API testing
+- Experience working in a CI/CD pipeline
+- Attention to detail when reproducing bugs
+
+Nice to have
+- Experience with performance testing tools
+- Familiarity with Docker
+- Exposure to mobile test automation
+
+Benefits
+- Competitive salary
+- Four weeks paid time off
