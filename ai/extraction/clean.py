@@ -29,11 +29,13 @@ _JOB_HEADING = re.compile(
 
 def clean_posting(text: str) -> list[dict]:
     """
-    Clean a job posting by removing non-job lines and returning a list of dictionaries containing the cleaned lines along with their start and end positions in the original text.
+    Return kept lines with original source offsets and their section heading.
+    Lines before the first heading have an empty heading.
     """
     kept = []
     offset = 0
     skipping = False
+    section_heading = ""
     for raw in text.splitlines(keepends=True):
         line = raw.strip()
         start = offset + len(raw) - len(raw.lstrip())
@@ -42,16 +44,21 @@ def clean_posting(text: str) -> list[dict]:
             continue
         heading = line.strip("#* \t").rstrip(":").strip()
         # shortcut: plain headings use known names; extend for new posting formats.
-        if _SKIP_HEADING.fullmatch(heading):
+        if _SKIP_HEADING.fullmatch(heading.split(":", 1)[0].strip()):
             skipping = True
             continue
         if (
             _JOB_HEADING.fullmatch(heading)
-            or line.endswith(":")
             or line.startswith("#")
             or (line.startswith("**") and line.endswith("**"))
         ):
             skipping = False
+            section_heading = line
         if not skipping:
-            kept.append({"text": line, "start": start, "end": start + len(line)})
+            kept.append({
+                "text": line,
+                "start": start,
+                "end": start + len(line),
+                "heading": section_heading,
+            })
     return kept
