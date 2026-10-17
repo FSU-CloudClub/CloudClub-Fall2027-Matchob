@@ -1,0 +1,19 @@
+Frontend Engineering Intern - Brightwave Labs
+
+About the role
+Join our web team for a 12-week summer internship and ship features used by thousands of students. You will pair with senior engineers and own small projects end to end.
+
+Requirements
+- Comfortable building user interfaces with React
+- Able to write clean, readable JavaScript
+- Experience using Git for version control
+- Strong communication skills when working on a team
+
+Nice to have
+- Experience with TypeScript
+- Familiarity with testing tools like Jest
+- Some exposure to accessibility best practices
+
+Benefits
+- Paid internship with a monthly housing stipend
+- Mentorship from senior engineers

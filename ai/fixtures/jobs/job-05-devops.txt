@@ -1,0 +1,20 @@
+DevOps Engineer - Summit Cloud
+
+About the role
+Our infrastructure team keeps dozens of services running reliably. You will automate deployments and improve how we monitor production systems.
+
+Requirements
+- 3+ years of experience operating production systems on Linux
+- Strong experience with AWS services
+- Experience building CI/CD pipelines
+- Proficiency writing automation scripts in Python or Bash
+- Experience with infrastructure as code using Terraform
+
+Nice to have
+- Experience with Kubernetes in production
+- Familiarity with monitoring tools like Prometheus
+- Exposure to Go
+
+Benefits
+- Competitive salary
+- On-call stipend

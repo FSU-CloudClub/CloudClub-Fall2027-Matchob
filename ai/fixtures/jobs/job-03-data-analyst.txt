@@ -1,0 +1,19 @@
+Data Analyst - Clearfield Insights
+
+About the role
+We help nonprofits make sense of their program data. You will build reports and dashboards that leaders use to make decisions every week.
+
+Requirements
+- Strong SQL skills for querying large datasets
+- Experience building dashboards in Tableau
+- Able to clean and prepare messy data in Excel
+- Clear written communication for reporting findings
+
+Nice to have
+- Experience with Python for data analysis
+- Familiarity with statistics and A/B testing
+- Exposure to Google BigQuery
+
+Benefits
+- Health and dental coverage
+- Annual learning budget
