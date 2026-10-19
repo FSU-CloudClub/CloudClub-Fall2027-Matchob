@@ -2,13 +2,25 @@
 //PDF PARSING
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
+// Type of file data this parser needs (works with browser File objects too).
+export interface PDFFileInput {
+  size: number;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
+// Output structure for each extracted PDF page.
+export interface PDFPage {
+  pageNumber: number;
+  lines: string[];
+}
+
 //opens PDFs, extracts text, processes hasEOL, and handles errors.
-export async function extractPDFText(file) {
+export async function extractPDFText(file: PDFFileInput | null): Promise<PDFPage[]> {
   if (!file || file.size === 0) {
     throw new Error("Please select a non-empty PDF.");
   }
 
-  let loadingTask;
+  let loadingTask: ReturnType<typeof pdfjsLib.getDocument> | undefined;
 
   try {
     const buffer = await file.arrayBuffer();
@@ -17,17 +29,17 @@ export async function extractPDFText(file) {
     loadingTask = pdfjsLib.getDocument({ data });
     const pdf = await loadingTask.promise;
 
-    const pages = [];
+    const pages: PDFPage[] = [];
 
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
 
-      const lines = [];
+      const lines: string[] = [];
       let currentLine = "";
 
       for (const item of content.items) {
-        if (typeof item.str !== "string") continue;
+        if (!("str" in item) || typeof item.str !== "string") continue;
 
         currentLine += item.str;
 
@@ -56,7 +68,12 @@ export async function extractPDFText(file) {
 
     return pages;
 
-  } catch (error) {
+  } catch (error: unknown) {
+    // TypeScript requires checking an unknown error before reading its properties.
+    if (!(error instanceof Error)) {
+      throw new Error("Unable to read this PDF. Please try another file.", { cause: error });
+    }
+
     // Preserve our own actionable error
     if (error.message?.includes("no extractable text")) {
       throw error;

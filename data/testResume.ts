@@ -3,7 +3,7 @@
 // Printss extracted resume text for inspection
 // manual test script
 
-//node testResume.js
+//npx tsx testResume.ts
 
 import { readFile } from "node:fs/promises";
 import { extractPDFText } from "./pdfParser.js";
@@ -29,5 +29,5 @@ try {
     }
   }
 } catch (error) {
-  console.error("PDF extraction failed:", error.message);
+  console.error("PDF extraction failed:", error instanceof Error ? error.message : String(error));
 }

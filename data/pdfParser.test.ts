@@ -1,5 +1,5 @@
 //autoamted tests for differente type of error checkings
-//calls main function from pdfParser.js
+//calls main function from pdfParser.ts
 //works with vitest
 
 import { describe, it, expect } from "vitest";
@@ -10,7 +10,7 @@ describe("PDF Parser", () => {
 
     // TEST 1: empty file
     it("rejects an empty file", async () => {
-        const emptyFile = { size: 0 };
+        const emptyFile = { size: 0, arrayBuffer: async () => new ArrayBuffer(0) };
 
         await expect(
         extractPDFText(emptyFile)

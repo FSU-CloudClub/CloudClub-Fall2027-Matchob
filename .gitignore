@@ -1,6 +1,11 @@
 # Node.js dependencies
 node_modules/
 
+# Original JavaScript backup files
+/data/pdfParser.js
+/data/pdfParser.test.js
+/data/testResume.js
+
 # Local environment variables
 .env
 .env.local
