@@ -82,7 +82,7 @@ Resources:
       Handler: app.lambda_handler
 
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref MatchobUsersTable
 
       Events:
@@ -92,6 +92,14 @@ Resources:
             RestApiId: !Ref MatchobApi
             Path: /profile
             Method: get
+        
+        UpdateProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MatchobApi
+            Path: /profile
+            Method: put
+            
   MatchobUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
@@ -106,6 +114,7 @@ Resources:
         - python3.13
     Metadata:
       BuildMethod: python3.13
+  
 
 Outputs:
   UserPoolId:
