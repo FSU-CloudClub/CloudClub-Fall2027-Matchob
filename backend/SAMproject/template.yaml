@@ -74,15 +74,15 @@ Resources:
           CognitoAuthorizer:
             UserPoolArn: !GetAtt MatchobUserPool.Arn
 
-  # Lambda for GET /profile
+  # Lambda for GET and POST /profile
   GetProfileFunction:
     Type: AWS::Serverless::Function
     Properties:
-      CodeUri: src/get-profile/
+      CodeUri: src/dynamodb-pipeline/
       Handler: app.lambda_handler
 
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref MatchobUsersTable
 
       Events:
@@ -92,6 +92,12 @@ Resources:
             RestApiId: !Ref MatchobApi
             Path: /profile
             Method: get
+        CreateUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MatchobApi
+            Path: /profile
+            Method: post
   MatchobUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
