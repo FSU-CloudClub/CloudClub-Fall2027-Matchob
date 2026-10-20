@@ -8,8 +8,35 @@ from aws_lambda_powertools.utilities.typing import LambdaContext    # type hint 
 from matchob_common.auth import get_user_id                         # shared auth helper (layer)
 
 # 1. Clients: once per container, reused while warm
-dynamodb = boto3.resource("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT") or None)  # local or AWS
-table = dynamodb.Table(os.environ["USERS_TABLE"])                   # our table
+#dynamodb = boto3.resource("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT") or None)  # local or AWS
+#table = dynamodb.Table(os.environ["USERS_TABLE"])                   # our table
+
+# DEBUG: Test whether boto3 can initialize a session
+import time
+
+start = time.perf_counter()                            # Start measuring elapsed time
+
+print("DEBUG A: Before session", flush=True)           # Check whether execution reaches boto3
+
+session = boto3.Session(                               # Create a boto3 session without making an API request
+    aws_access_key_id="local",                         # Use local test credentials
+    aws_secret_access_key="local",                     # Use local test credentials
+    region_name="us-east-1"                            # Set the region explicitly
+)
+
+print("DEBUG B: Session created", flush=True)           # Check whether session initialization succeeds
+
+dynamodb = session.resource(                           # Create DynamoDB resource from that session
+    "dynamodb",                                         # Select DynamoDB
+    endpoint_url="http://dynamodb:8000"                 # Point to local DynamoDB
+)
+
+print("DEBUG C: Resource created", flush=True)          # Confirm resource initialization completed
+
+table = dynamodb.Table(os.environ["USERS_TABLE"])       # Reference the existing users table
+
+print("DEBUG D: Table ready", flush=True)               # Confirm table initialization completed
+print("Elapsed:", time.perf_counter() - start, flush=True)  # Display initialization duration
 
 # 2. Powertools objects
 logger = Logger()                                                   # service name from POWERTOOLS_SERVICE_NAME
@@ -34,6 +61,40 @@ def get_profile():
 
     logger.info("profile fetched", extra={"user_id": user_id})      # extra = searchable fields
     return response                                                     # plain dict → 200 + JSON body
+
+
+# GET endpoint for retrieving a user's core metadata
+@app.get("/profile/core")                                          # Handles GET /profile/core requests
+def get_core_metadata():                                           # Defines the core metadata function
+    user_id = get_user_id(app.current_event.raw_event)             # Extracts authenticated user ID from the request
+
+    if not user_id:                                                # Checks whether the user is authenticated
+        return {"error": "Unauthorized"}, 401                       # Returns HTTP 401 if authentication fails
+
+    try:                                                           # Attempts to retrieve user data from DynamoDB
+        response = table.get_item(Key={"userId": user_id})         # Searches DynamoDB using the user's unique ID
+    except ClientError:                                            # Catches AWS DynamoDB client errors
+        logger.exception("Failed to retrieve core metadata")      # Logs the error and stack trace
+        return {"error": "Internal server error"}, 500             # Returns HTTP 500 without exposing internal details
+
+    profile = response.get("Item")                                 # Extracts the user record from DynamoDB's response
+
+    if profile is None:                                            # Checks whether the user record exists
+        return {"error": "User not found"}, 404                     # Returns HTTP 404 if no matching user exists
+
+    core_metadata = {                                              # Creates a dictionary containing only required fields
+        "userId": profile.get("userId"),                            # Retrieves the user's unique identifier
+        "email": profile.get("email"),                              # Retrieves the user's email address
+        "firstName": profile.get("firstName"),                      # Retrieves the user's first name
+        "lastName": profile.get("lastName")                         # Retrieves the user's last name
+    }                                                              # Ends the core metadata dictionary
+
+    logger.info("Core metadata retrieved", extra={"user_id": user_id})  # Logs successful metadata retrieval
+
+    return core_metadata                                           # Returns the four metadata fields as a JSON response
+
+
+
 
 # 4. Entry point: always exactly this
 @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)  # adds request ID, cold_start to logs
