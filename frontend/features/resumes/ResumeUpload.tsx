@@ -30,17 +30,20 @@ export function ResumeUpload() {
   function openPicker() {
     fileInputRef.current?.click();
   }
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = ''; // allow choosing the same file again
-    if (!file) return;
+  function handleUpload(file: File) {
     const result = validateFile(file);
     if (!result.valid) {
       setUploadState({status: 'invalid', message: result.message});
       return;
     }
     setUploadState({status: 'uploading', file});
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = ''; // allow choosing the same file again
+    if (!file) return;
+    handleUpload(file);
   }
 
   return (
