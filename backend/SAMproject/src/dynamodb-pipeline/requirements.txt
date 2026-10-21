@@ -1,3 +1,3 @@
 # this is where dependencies go
 boto3
-aws-lambda-powertools
+aws-lambda-powertools>=3.35,<4

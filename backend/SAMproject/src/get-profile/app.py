@@ -71,6 +71,28 @@ def create_user():
     logger.info("profile created", extra={"user_id": user_id})
     return item, 201                                               # created successfully
 
+@app.delete("/profile")                                             # handles DELETE /profile
+def delete_user():
+    user_id = get_user_id(app.current_event.raw_event)              # authenticated user's ID
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+
+    try:
+        item = table.delete_item(
+            Key={"userId": user_id},
+            ReturnValues="ALL_OLD",                                # return the profile that was deleted
+        ).get("Attributes")
+    except ClientError:
+        logger.exception("dynamodb delete_item failed")
+        return {"error": "Internal server error"}, 500
+
+    if item is None:                                                # no profile existed to delete
+        return {"error": "Profile not found"}, 404
+
+    logger.info("profile deleted", extra={"user_id": user_id})
+    return {"message": "Profile deleted"}
+
+
 @app.put("/profile")                                                # handles PUT /profile
 def put_profile():
     user_id = get_user_id(app.current_event.raw_event)

@@ -92,11 +92,15 @@ Resources:
             RestApiId: !Ref MatchobApi
             Path: /profile
             Method: get
+
+        DeleteProfile:
         CreateUser:
           Type: Api
           Properties:
             RestApiId: !Ref MatchobApi
             Path: /profile
+            Method: delete
+
             Method: post
         UpdateProfile:
           Type: Api
