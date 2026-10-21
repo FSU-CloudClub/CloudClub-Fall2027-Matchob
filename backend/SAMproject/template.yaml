@@ -74,7 +74,7 @@ Resources:
           CognitoAuthorizer:
             UserPoolArn: !GetAtt MatchobUserPool.Arn
 
-  # Lambda for GET /profile
+  # Lambda for GET and POST /profile
   GetProfileFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -82,7 +82,7 @@ Resources:
       Handler: app.lambda_handler
 
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref MatchobUsersTable
 
       Events:
@@ -94,12 +94,14 @@ Resources:
             Method: get
 
         DeleteProfile:
+        CreateUser:
           Type: Api
           Properties:
             RestApiId: !Ref MatchobApi
             Path: /profile
             Method: delete
 
+            Method: post
   MatchobUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:

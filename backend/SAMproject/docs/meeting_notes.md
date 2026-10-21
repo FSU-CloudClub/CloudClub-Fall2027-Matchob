@@ -74,3 +74,19 @@ flowchart TB
     Seed -->|"seed data"| DDB
 ```
 *P.S. I made a file called dev.py and it sets up the local environment and runs one test. Run the python file and the docker containers + sam lambda simulation should be running. - Carter*
+
+## Meeting 2
+**Date: 10/15/2026**
+### Endpoint Assignment
+- Creating a user (post) - Tommy
+- Editing a user (put) - Cooper
+- Deleting a user - Santiago 
+- Getting a user core metadata - Schneider
+- Get user profile (get) - Carter
+
+### HTTP Request Types
+- Get: to get data
+- Put: to place new rows
+- Delete: to delete rows
+- Patch: partial update 
+- Put: full update
