@@ -63,35 +63,54 @@ def get_profile():
     return response                                                     # plain dict → 200 + JSON body
 
 
-# GET endpoint for retrieving a user's core metadata
-@app.get("/profile/core")                                          # Handles GET /profile/core requests
-def get_core_metadata():                                           # Defines the core metadata function
-    user_id = get_user_id(app.current_event.raw_event)             # Extracts authenticated user ID from the request
 
-    if not user_id:                                                # Checks whether the user is authenticated
-        return {"error": "Unauthorized"}, 401                       # Returns HTTP 401 if authentication fails
+# GET endpoint for retrieving validated core metadata
+@app.get("/profile/core")                                         # Handles GET /profile/core requests
+def get_core_metadata():                                          # Defines the core metadata function
+    user_id = get_user_id(app.current_event.raw_event)            # Extracts the authenticated user's ID
 
-    try:                                                           # Attempts to retrieve user data from DynamoDB
-        response = table.get_item(Key={"userId": user_id})         # Searches DynamoDB using the user's unique ID
-    except ClientError:                                            # Catches AWS DynamoDB client errors
-        logger.exception("Failed to retrieve core metadata")      # Logs the error and stack trace
-        return {"error": "Internal server error"}, 500             # Returns HTTP 500 without exposing internal details
+    if not isinstance(user_id, str) or not user_id.strip():        # Validates that the ID is a non-empty string
+        return {"error": "Unauthorized"}, 401                      # Rejects requests without a valid user ID
 
-    profile = response.get("Item")                                 # Extracts the user record from DynamoDB's response
+    try:                                                          # Attempts to retrieve the user's record
+        response = table.get_item(Key={"userId": user_id})         # Searches DynamoDB using the authenticated ID
+    except ClientError:                                           # Handles DynamoDB client errors
+        logger.exception("Failed to retrieve core metadata")     # Logs the exception for debugging
+        return {"error": "Internal server error"}, 500             # Returns a generic server error
 
-    if profile is None:                                            # Checks whether the user record exists
-        return {"error": "User not found"}, 404                     # Returns HTTP 404 if no matching user exists
+    profile = response.get("Item")                                 # Extracts the stored user record
 
-    core_metadata = {                                              # Creates a dictionary containing only required fields
-        "userId": profile.get("userId"),                            # Retrieves the user's unique identifier
-        "email": profile.get("email"),                              # Retrieves the user's email address
-        "firstName": profile.get("firstName"),                      # Retrieves the user's first name
-        "lastName": profile.get("lastName")                         # Retrieves the user's last name
-    }                                                              # Ends the core metadata dictionary
+    if profile is None:                                           # Checks whether the user exists
+        return {"error": "User not found"}, 404                    # Returns 404 when the record is missing
 
-    logger.info("Core metadata retrieved", extra={"user_id": user_id})  # Logs successful metadata retrieval
+    required_fields = ("userId", "email", "firstName", "lastName")   # Defines the four required metadata attributes
 
-    return core_metadata                                           # Returns the four metadata fields as a JSON response
+    for field in required_fields:                                 # Checks each required field
+        value = profile.get(field)                                # Retrieves the field's stored value
+        if not isinstance(value, str) or not value.strip():        # Rejects missing, empty, or non-string values
+            logger.error("Invalid core metadata", extra={"field": field})  # Records which field is invalid
+            return {"error": "Incomplete core metadata"}, 500     # Reports invalid stored data
+
+    if profile["userId"] != user_id:                               # Verifies the record belongs to the requested user
+        logger.error("Core metadata user ID mismatch")            # Logs a record integrity problem
+        return {"error": "Internal server error"}, 500             # Prevents returning mismatched data
+
+    email = profile["email"]                                       # Reads the validated email string
+    local, separator, domain = email.partition("@")                # Splits email into local and domain parts
+
+    if not local or separator != "@" or not domain or "@" in domain:  # Checks basic email structure
+        logger.error("Invalid email in core metadata")            # Logs an invalid stored email
+        return {"error": "Invalid core metadata"}, 500             # Rejects malformed stored metadata
+
+    core_metadata = {                                             # Constructs the successful response
+        "userId": profile["userId"],                               # Includes the user's unique ID
+        "email": profile["email"],                                 # Includes the user's email
+        "firstName": profile["firstName"],                         # Includes the user's first name
+        "lastName": profile["lastName"]                             # Includes the user's last name
+    }                                                             # Ends the response dictionary
+
+    logger.info("Core metadata retrieved", extra={"user_id": user_id})  # Logs successful retrieval
+    return core_metadata                                          # Returns the metadata as JSON with HTTP 200
 
 
 

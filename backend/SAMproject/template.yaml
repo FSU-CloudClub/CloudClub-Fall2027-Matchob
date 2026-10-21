@@ -81,7 +81,9 @@ Resources:
     Properties:
       CodeUri: src/dynamodb-pipeline/
       Handler: app.lambda_handler
-
+      Timeout: 60             # Temporary timeout for debugging
+      MemorySize: 512         # Temporary memory allocation
+      
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref MatchobUsersTable
