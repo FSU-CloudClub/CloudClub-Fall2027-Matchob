@@ -75,31 +75,38 @@ Resources:
             UserPoolArn: !GetAtt MatchobUserPool.Arn
 
 
-  # Lambda for retrieving user profiles and core metadata
-  GetProfileFunction:                              # Logical name of the Lambda function
-    Type: AWS::Serverless::Function                # Creates an AWS Lambda using SAM
-    Properties:                                    # Lambda configuration
-      CodeUri: src/dynamodb-pipeline/               # Folder containing our app.py
-      Handler: app.lambda_handler                  # Python function AWS executes
+  # Lambda for getting and creating user profiles
+  GetProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/dynamodb-pipeline/
+      Handler: app.lambda_handler
 
-      Policies:                                    # Permissions granted to the Lambda
-        - DynamoDBReadPolicy:                      # Allows DynamoDB read operations
-            TableName: !Ref MatchobUsersTable      # References the existing users table
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MatchobUsersTable
 
-      Events:                                      # API Gateway routes
-        GetProfile:                                # Existing profile endpoint
-          Type: Api                                # API Gateway event
-          Properties:                              # Event configuration
-            RestApiId: !Ref MatchobApi             # Uses the existing API
-            Path: /profile                         # GET /profile URL
-            Method: get                            # HTTP GET request
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MatchobApi
+            Path: /profile
+            Method: get
 
-        GetCoreMetadata:                           # New core metadata endpoint
-          Type: Api                                # API Gateway event
-          Properties:                              # Event configuration
-            RestApiId: !Ref MatchobApi             # Uses the existing API
-            Path: /profile/core                    # GET /profile/core URL
-            Method: get                            # HTTP GET request
+        CreateUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MatchobApi
+            Path: /profile
+            Method: post
+
+        GetCoreMetadata:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MatchobApi
+            Path: /profile/core
+            Method: get
 
   MatchobUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain

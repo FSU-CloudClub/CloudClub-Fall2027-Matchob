@@ -95,6 +95,41 @@ def get_core_metadata():                                           # Defines the
 
 
 
+@app.post("/profile")                                              # handles POST /profile
+def create_user():
+    user_id = get_user_id(app.current_event.raw_event)              # authenticated user's ID
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+
+    try:
+        body = app.current_event.json_body                         # parse request JSON
+    except (ValueError, TypeError):
+        return {"error": "Invalid JSON body"}, 400
+
+    if not isinstance(body, dict):
+        return {"error": "Request body must be a JSON object"}, 400
+
+    name = body.get("name")
+    education = body.get("education")
+    if not isinstance(name, str) or not name.strip():
+        return {"error": "name must be a non-empty string"}, 400
+    if not isinstance(education, str) or not education.strip():
+        return {"error": "education must be a non-empty string"}, 400
+
+    item = {"userId": user_id, "name": name.strip(), "education": education.strip()}
+    try:
+        table.put_item(
+            Item=item,
+            ConditionExpression="attribute_not_exists(userId)",   # prevent overwriting an existing user
+        )
+    except ClientError as error:
+        if error.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return {"error": "Profile already exists"}, 409
+        logger.exception("dynamodb put_item failed")
+        return {"error": "Internal server error"}, 500
+
+    logger.info("profile created", extra={"user_id": user_id})
+    return item, 201                                               # created successfully
 
 # 4. Entry point: always exactly this
 @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)  # adds request ID, cold_start to logs
