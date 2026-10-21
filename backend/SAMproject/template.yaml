@@ -74,7 +74,7 @@ Resources:
           CognitoAuthorizer:
             UserPoolArn: !GetAtt MatchobUserPool.Arn
 
-  # Lambda for GET /profile
+  # Lambda for GET, POST and PUT /profile
   GetProfileFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -92,14 +92,18 @@ Resources:
             RestApiId: !Ref MatchobApi
             Path: /profile
             Method: get
-        
+        CreateUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref MatchobApi
+            Path: /profile
+            Method: post
         UpdateProfile:
           Type: Api
           Properties:
             RestApiId: !Ref MatchobApi
             Path: /profile
             Method: put
-            
   MatchobUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
