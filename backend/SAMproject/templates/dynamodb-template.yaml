@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Profile service - users table, API, and profile Lambda
+
+Parameters:
+  UserPoolArn:
+    Type: String
+
+Globals:
+  Function:
+    Layers:
+      - !Ref SharedLayer
+    Runtime: python3.13
+    Timeout: 10
+    Environment:
+      Variables:
+        USERS_TABLE: !Ref MatchobUsersTable
+        DYNAMODB_ENDPOINT: ""
+
+Resources:
+  SharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: ../src/shared
+      CompatibleRuntimes:
+        - python3.13
+    Metadata:
+      BuildMethod: python3.13
+
+  MatchobUsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MatchobUsers
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+
+  ProfileApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Ref UserPoolArn
+
+  ProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src/dynamodb-pipeline/
+      Handler: app.lambda_handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MatchobUsersTable
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ProfileApi
+            Path: /profile
+            Method: get
+        CreateUser:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ProfileApi
+            Path: /profile
+            Method: post
+        UpdateProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ProfileApi
+            Path: /profile
+            Method: put
+        DeleteProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ProfileApi
+            Path: /profile
+            Method: delete
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${ProfileApi}.execute-api.${AWS::Region}.amazonaws.com/dev"
