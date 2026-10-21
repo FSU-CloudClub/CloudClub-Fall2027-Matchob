@@ -1,4 +1,4 @@
-import os                                                           # env vars
+import os     
 import boto3                                                        # AWS SDK
 from botocore.exceptions import ClientError                         # AWS error type
 from aws_lambda_powertools import Logger                            # structured JSON logger
@@ -93,6 +93,47 @@ def delete_user():
     return {"message": "Profile deleted"}
 
 
+@app.put("/profile")                                                # handles PUT /profile
+def put_profile():
+    user_id = get_user_id(app.current_event.raw_event)
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+    
+    try:
+        body = app.current_event.json_body
+        if not body:
+            return {"error": "Failed to get request body"}, 400
+    
+        body["userId"] = user_id # make sure user id is set to authenticated user
+    
+        table.put_item(Item=body) # write profile
+    #client error check
+    except ClientError:
+        logger.exception("dynamodb put_item failed")
+        return {"error": "Internal server error"}, 500
+    
+    logger.info("profile updated", extra={"user_id": user_id})
+    return {"message": "Profile updated", "Profile": body}, 200
+
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
 # 4. Entry point: always exactly this
 @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)  # adds request ID, cold_start to logs
 def lambda_handler(event: dict, context: LambdaContext) -> dict:
