@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { mockResumes } from '../../mocks/resumes';
 import type { Resume } from '../../types';
 import pdfIcon from '../../assets/icons/file-earmark-pdf.svg';
+import { ResumeUpload } from './ResumeUpload';
 import './ResumeVault.css';
 
 const uploadDate = new Intl.DateTimeFormat('en-US', {
@@ -23,6 +24,8 @@ const previewResumes: Resume[] = Array.from({ length: 10 }, (_, index) =>
 export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {}) {
   const [openActions, setOpenActions] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
+  const [uploadedResumes, setUploadedResumes] = useState<Resume[]>([]);
+  const visibleResumes = [...uploadedResumes, ...resumes];
 
   function placeholder(action: string, name: string) {
     setNotice(`${action} for ${name} is not available yet.`);
@@ -34,15 +37,24 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
       <p className="eyebrow">Vault</p>
       <h2 id="resume-vault-title">Resume Vault</h2>
 
+      <ResumeUpload onUploadComplete={(result, file) => {
+        setUploadedResumes((current) => [{
+          id: result.key,
+          name: file.name,
+          tags: [],
+          uploadedAt: new Date().toISOString(),
+        }, ...current]);
+      }} />
+
       <div className="resume-vault-summary">
-        <span>{resumes.length} {resumes.length === 1 ? 'resume' : 'resumes'}</span>
+        <span>{visibleResumes.length} {visibleResumes.length === 1 ? 'resume' : 'resumes'}</span>
       </div>
 
       <p className="resume-notice" role="status">{notice}</p>
 
-      {resumes.length > 0 ? (
-        <ul className="resume-list" aria-label="Saved resumes">
-          {resumes.map((resume) => (
+      {visibleResumes.length > 0 ? (
+        <ul className="resume-list" aria-label="Resume preview list">
+          {visibleResumes.map((resume) => (
             <li key={resume.id} className="resume-row">
               <button className="resume-thumbnail" aria-label={`Preview ${resume.name}`} onClick={() => placeholder('Preview', resume.name)}>
                 <img className="resume-pdf-icon" src={pdfIcon} alt="" aria-hidden="true" />

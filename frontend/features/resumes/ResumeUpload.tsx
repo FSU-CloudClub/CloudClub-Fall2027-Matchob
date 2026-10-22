@@ -172,7 +172,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
 
       {state.status === 'success' && (
         <p className="resume-upload__success" role="status">
-          Uploaded {state.file.name}
+          Added {state.file.name} to this preview. It is not saved yet.
         </p>
       )}
 
