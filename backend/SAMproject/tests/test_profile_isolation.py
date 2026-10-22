@@ -7,9 +7,9 @@ These check that a user can only ever read their own profile:
 - a user ID in the query string, path or body never changes whose
   profile is read
 
-Like tests/test_get_profile.py, these call lambda_handler directly with
-a fake event and a fake DynamoDB table, so the API doesn't need to be
-running.
+These call lambda_handler in src/dynamodb-pipeline/app.py directly with
+a fake API Gateway event and a fake DynamoDB table, so neither the API
+nor Docker needs to be running.
 """
 
 import os
@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 LAMBDA_DIR = (
     Path(__file__).resolve().parents[1]
     / "src"
-    / "get-profile"
+    / "dynamodb-pipeline"
 )
 
 sys.path.insert(0, str(LAMBDA_DIR))
@@ -37,7 +37,7 @@ class FakeLambdaContext:
     """Stand-in for the context AWS passes to a Lambda.
 
     The handler's Powertools logger reads these four fields, so passing
-    None (as tests/test_get_profile.py does) crashes before the handler
+    None crashes before the handler
     code runs.
     """
 
@@ -146,8 +146,6 @@ class TestProfileIsolation(unittest.TestCase):
         )
 
     def test_local_header_missing_profile_returns_404(self):
-        # Currently fails: the handler returns 200 with an empty body.
-        # Reported to Backend; expected behavior is 404 (see testing.md).
         self.mock_table.get_item.return_value = {}
 
         with self.local_mode():
