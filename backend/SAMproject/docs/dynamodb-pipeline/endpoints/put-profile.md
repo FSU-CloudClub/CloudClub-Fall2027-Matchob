@@ -1,7 +1,6 @@
 # PUT /profile
 
 **Contract:** [api-contracts.md → PUT /profile](../../general/api-contracts.md#put-profile)
-**Status:** Done
 **Code:** `src/dynamodb-pipeline/app.py` → `put_profile()`
 
 ## What it does

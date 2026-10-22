@@ -1,7 +1,6 @@
 # DELETE /profile
 
 **Contract:** [api-contracts.md → DELETE /profile](../../general/api-contracts.md#delete-profile)
-**Status:** Done (see the gap below)
 **Code:** `src/dynamodb-pipeline/app.py` → `delete_user()`
 
 ## What it does

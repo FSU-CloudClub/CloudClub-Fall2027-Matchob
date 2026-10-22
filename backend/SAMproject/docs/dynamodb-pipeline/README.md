@@ -13,12 +13,12 @@
 
 ## Endpoints
 
-| Endpoint | Function | Doc | Status |
-|---|---|---|---|
-| `GET /profile` | `get_profile()` | [get-profile.md](endpoints/get-profile.md) | Done |
-| `POST /profile` | `create_user()` | [post-profile.md](endpoints/post-profile.md) | Done |
-| `PUT /profile` | `put_profile()` | [put-profile.md](endpoints/put-profile.md) | Done |
-| `DELETE /profile` | `delete_user()` | [delete-profile.md](endpoints/delete-profile.md) | Done |
+| Endpoint | Function | Doc |
+|---|---|---|
+| `GET /profile` | `get_profile()` | [get-profile.md](endpoints/get-profile.md) |
+| `POST /profile` | `create_user()` | [post-profile.md](endpoints/post-profile.md) |
+| `PUT /profile` | `put_profile()` | [put-profile.md](endpoints/put-profile.md) |
+| `DELETE /profile` | `delete_user()` | [delete-profile.md](endpoints/delete-profile.md) |
 
 ## Infrastructure
 

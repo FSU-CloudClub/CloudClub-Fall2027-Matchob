@@ -32,8 +32,9 @@ A **validator** takes a raw value from the request body and returns the cleaned 
 | `one_of(*choices)` | One of the given strings, exactly | The string |
 | `url_list` | A list of strings starting with `http://` or `https://` | The list, each trimmed |
 | `optional_str` | `None` or a non-empty string | `None` or the trimmed string |
+| `str_length(low, high)` | A string whose trimmed length is `low` to `high` | The trimmed string |
 
-`int_between` and `one_of` build a validator, so call them in the spec: `int_between(13, 120)`.
+`int_between`, `one_of` and `str_length` build a validator, so call them in the spec: `int_between(13, 120)`.
 
 ### `validate_fields(body, spec, partial)`
 

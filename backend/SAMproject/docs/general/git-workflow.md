@@ -17,50 +17,37 @@ flowchart LR
     F --> G["Review, then merge on GitHub"]
 ```
 
-**1. Start from an up-to-date `main`**
 ```bash
+# 1. Start from an up-to-date main
 git switch main
 git pull
-```
 
-**2. Create a branch for one task**
-```bash
-git switch -c <name>/<task>          # e.g. sarah/upload-url
-```
-One branch per task. Never commit directly to `main`.
+# 2. Create a branch for one task (never commit directly to main)
+git switch -c <name>-<task>          # e.g. sarah/upload-url
 
-**3. Commit as you go**
-```bash
+# 3. Commit as you go (small commits are easier to review and to undo)
 git status                           # what changed
 git diff                             # the changes themselves
 git add <file> <file>                # stage specific files (avoid `git add .` until you've checked git status)
 git commit -m "Add presign_upload helper"
-```
-Commit each working step. Small commits are easier to review and to undo.
 
-**4. Bring in other people's work at least once a day**
-```bash
+# 4. Bring in other people's work at least once a day
 git fetch
-git merge origin/main                # merges the latest main from GitHub into your branch
-```
-`origin/main` is GitHub's `main`, so you don't need to switch branches or pull your local `main` first. Fix any conflicts now, while they're small (see [Merge conflicts](#merge-conflicts)).
+git merge origin/main                # merges GitHub's latest main into your branch; fix conflicts now while they're small
 
-**5. Push**
-```bash
-git push -u origin <name>/<task>     # first push: creates the branch on GitHub
+# 5. Push
+git push -u origin <name>-<task>     # first push: creates the branch on GitHub
 git push                             # every push after that
-```
 
-**6. Open a pull request on GitHub**
-- Base: `main`. Compare: your branch.
-- Say what changed and how you tested it (the "Done when" checks from your endpoint doc).
-- Merge `origin/main` in once more right before asking for review.
+# 6. Open a pull request on GitHub
+#    - Base: main. Compare: your branch.
+#    - Say what changed and how you tested it (the "Done when" checks from your endpoint doc).
+#    - Merge origin/main in once more right before asking for review.
 
-**7. After it's merged**
-```bash
+# 7. After it's merged
 git switch main
 git pull
-git branch -d <name>/<task>          # delete your local copy of the branch
+git branch -d <name>-<task>          # delete your local copy of the branch
 ```
 
 ## How we avoid conflicts
@@ -72,36 +59,6 @@ A conflict happens when two branches change the same lines. Most of ours can be 
 - **Merge `origin/main` daily.** A one-day-old conflict is three lines; a one-week-old conflict is a rewrite.
 - **Keep PRs small and merge them fast.** A PR that sits open for days collects conflicts.
 - **Say it in the group chat** before you change anything shared, such as a template, a shared helper's signature or the contract.
-
-## Merge conflicts
-
-When `git merge` stops with `CONFLICT`, the file has both versions in it:
-
-```
-<<<<<<< HEAD
-your version
-=======
-the version from main
->>>>>>> origin/main
-```
-
-1. `git status` lists the conflicted files under "Unmerged paths".
-2. Open each one. In VS Code, use **Accept Current**, **Accept Incoming**, **Accept Both** or **Resolve in Merge Editor**, or edit it by hand.
-3. **Read the result.** Make it what the code should be, with both changes working together. Remove every `<<<<<<<`, `=======` and `>>>>>>>` line.
-4. Check it still works:
-   ```bash
-   sam validate --lint          # if you touched a template
-   sam build
-   ```
-5. Finish the merge:
-   ```bash
-   git add <file>
-   git commit                   # Git fills in the message
-   ```
-
-To give up and go back to before the merge: `git merge --abort`.
-
-**"Accept Both" is the most common source of broken code here.** In YAML it often leaves two keys stacked together or a property listed twice, which is still valid-looking text but a broken template. After accepting both, always read the block and run `sam validate --lint`.
 
 ## Command reference
 

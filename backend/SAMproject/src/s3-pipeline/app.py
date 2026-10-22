@@ -7,16 +7,13 @@ from aws_lambda_powertools.event_handler import APIGatewayRestResolver
 from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from matchob_common.http import to_json
-
-dynamodb = boto3.resource("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT") or None)
-table = dynamodb.Table(os.environ["USERS_TABLE"])
+from resume_helpers import BUCKET, table
 
 s3 = boto3.client(
     "s3",
     endpoint_url=os.environ.get("S3_ENDPOINT") or None,
     config=Config(s3={"addressing_style": "path"}),
 )
-BUCKET = os.environ["UPLOAD_BUCKET"]
 
 logger = Logger()
 app = APIGatewayRestResolver(serializer=to_json)

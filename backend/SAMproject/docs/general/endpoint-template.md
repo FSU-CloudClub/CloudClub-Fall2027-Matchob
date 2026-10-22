@@ -16,7 +16,6 @@ Copy everything below the line into `docs/<pipeline>/endpoints/<endpoint-name>.m
 # <METHOD> <path>
 
 **Contract:** [api-contracts.md → <METHOD> <path>](../../general/api-contracts.md#<anchor>)
-**Status:** Not started | In progress | Done
 **Code:** `src/<pipeline>/app.py` → `<function_name>()`
 
 ## What it does

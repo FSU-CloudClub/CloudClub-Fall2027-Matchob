@@ -1,7 +1,6 @@
 # GET /resumes
 
 **Contract:** [api-contracts.md → GET /resumes](../../general/api-contracts.md#get-resumes)
-**Status:** Not started
 **Code:** `src/s3-pipeline/app.py` → `list_resumes()`
 
 ## What it does

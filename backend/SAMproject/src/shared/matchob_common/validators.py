@@ -61,6 +61,15 @@ def optional_str(value):
     return None if value is None else non_empty_str(value)
 
 
+def str_length(low, high):
+    """Build a validator for a string whose trimmed length is from low to high, inclusive."""
+    def validate(value):
+        if not isinstance(value, str) or not low <= len(value.strip()) <= high:
+            raise ValueError(f"must be {low}-{high} characters")
+        return value.strip()
+    return validate
+
+
 def validate_fields(body, spec, partial):
     """Validate a request body against a field spec.
 
