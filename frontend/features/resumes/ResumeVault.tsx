@@ -15,7 +15,12 @@ type ResumeVaultProps = {
   resumes?: Resume[];
 };
 
-export function ResumeVault({ resumes = mockResumes }: ResumeVaultProps = {}) {
+// Repeat the fixture only for the vault's scrolling UI preview.
+const previewResumes: Resume[] = Array.from({ length: 10 }, (_, index) =>
+  mockResumes.map((resume) => ({ ...resume, id: `${resume.id}-preview-${index}` })),
+).flat();
+
+export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {}) {
   const [openActions, setOpenActions] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
 
