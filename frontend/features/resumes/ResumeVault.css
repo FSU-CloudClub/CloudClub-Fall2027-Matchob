@@ -1,0 +1,204 @@
+.resume-vault-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 22px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.resume-list {
+  display: grid;
+  align-content: start;
+  flex: 0 1 auto;
+  min-height: 0;
+  gap: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resume-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 32px;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 2px;
+}
+
+.resume-row + .resume-row { border-top: 1px solid var(--card-line); }
+
+.resume-thumbnail {
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.resume-pdf-icon {
+  display: block;
+  width: 34px;
+  height: 44px;
+}
+
+:root[data-theme='dark'] .resume-pdf-icon {
+  filter: invert(1);
+}
+
+.resume-name {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.resume-name:hover { text-decoration: underline; }
+.resume-actions { position: relative; }
+.resume-more {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 22px;
+  cursor: pointer;
+}
+.resume-more:hover { background: var(--glass-surface-hover); }
+.resume-action-menu {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  z-index: 1;
+  width: 110px;
+  padding: 4px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--page-bg);
+  box-shadow: var(--glass-shadow);
+}
+.resume-action-menu button {
+  display: block;
+  width: 100%;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.resume-action-menu button:hover { background: var(--glass-surface-hover); }
+
+:root:not([data-theme='dark']) .resume-more:hover,
+:root:not([data-theme='dark']) .resume-action-menu button:hover {
+  background: #ded9ce;
+  color: #25231e;
+}
+
+.resume-vault button:focus-visible { outline: 2px solid var(--eyebrow); outline-offset: 2px; }
+.resume-vault .resume-notice { font-size: 11px; margin-bottom: 8px; }
+.resume-notice:empty { display: none; }
+
+.resume-row-content { flex: 1; min-width: 0; }
+.resume-row h3 { margin: 0 0 5px; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.resume-row .resume-upload-date { font-size: 11px; }
+
+.resume-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.resume-tags li {
+  max-width: 100%;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--glass-surface-hover);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.resume-vault-empty {
+  padding: 28px 16px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 14px;
+  background: var(--glass-card);
+  text-align: center;
+}
+
+.resume-vault-empty h3 { margin: 0 0 8px; font-size: 15px; }
+.resume-vault-empty p { font-size: 12px; }
+.popup-page:has(.resume-vault) {
+  overflow: hidden;
+}
+
+.popup-page .popup:has(.resume-vault) {
+  display: flex;
+  flex-direction: column;
+  max-height: 560px;
+  width: 360px;
+  min-height: 0;
+}
+
+.popup:has(.resume-vault) > .brand,
+.popup:has(.resume-vault) > .navigation,
+.popup:has(.resume-vault) > .step-label {
+  flex-shrink: 0;
+}
+
+.resume-vault {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.resume-vault > :not(.resume-list) {
+  flex-shrink: 0;
+}
+
+
+:root:not([data-theme='dark']) .resume-tags li {
+  background: #e2ded4;
+  color: #494438;
+}
+
+@media (max-width: 340px) {
+  .popup-page .popup:has(.resume-vault) { padding: 18px 14px; }
+  .resume-row { gap: 8px; }
+  .resume-vault { margin-top: 22px; margin-bottom: 20px; }
+  .resume-vault-summary { margin-top: 14px; }
+}
+
+@media (max-height: 520px) {
+  .popup-page .popup:has(.resume-vault) { max-height: 440px; padding-top: 16px; padding-bottom: 16px; }
+  .resume-vault { margin-top: 18px; margin-bottom: 16px; }
+  .resume-vault-summary { margin-top: 12px; }
+  .popup:has(.resume-vault) > .step-label { margin-top: 10px; }
+}
+
+@media (pointer: coarse) {
+  .resume-more { min-height: 44px; }
+  .resume-action-menu button { min-height: 44px; }
+}
