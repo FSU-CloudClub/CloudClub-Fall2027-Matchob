@@ -269,3 +269,27 @@ body { margin: 0; }
 .autofill-fields li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--card-line); font-size: 10px; }
 .autofill-fields li span { color: var(--panel-muted); }
 .autofill-fields li strong { max-width: 62%; overflow-wrap: anywhere; text-align: right; font-weight: 600; }
+
+.resume-upload { display: grid; gap: 10px; margin-top: 14px; }
+
+.resume-upload__dropzone {
+  padding: 18px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 12px;
+  text-align: center;
+}
+.resume-upload__dropzone--dragging { border-color: var(--glass-gold-border); background: var(--glass-surface-hover); }
+
+.resume-upload .resume-upload__error { color: #a43b2f; }
+:root[data-theme='dark'] .resume-upload .resume-upload__error { color: #ffa294; }
+
+.resume-upload__spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--card-line);
+  border-top-color: var(--eyebrow);
+  border-radius: 50%;
+  animation: resume-upload-spin .7s linear infinite;
+}
+@keyframes resume-upload-spin { to { transform: rotate(360deg); } }
