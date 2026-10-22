@@ -9,13 +9,27 @@ Positions are counted in the exact string passed in, so slice that same string.
 """
 
 
-# Headings that can never be the skills line, even right under SKILLS.
-KNOWN_HEADINGS = {"education", "experience", "projects", "skills"}
+# Every heading we recognize, mapped to the section name it starts.
+# Several headings can share one name: "TECHNICAL SKILLS" and "SKILLS" both
+# start "skills". Any other line, even all caps like a company name such as
+# "GOOGLE", is not a heading and leaves the section unchanged.
+HEADINGS = {
+    "EDUCATION": "education",
+    "EXPERIENCE": "experience",
+    "WORK EXPERIENCE": "experience",
+    "PROFESSIONAL EXPERIENCE": "experience",
+    "PROJECTS": "projects",
+    "SKILLS": "skills",
+    "TECHNICAL SKILLS": "skills",
+    "CERTIFICATIONS": "certifications",
+    "LEADERSHIP": "leadership",
+    "AWARDS": "awards",
+}
 
 
 def split_resume(text: str) -> list[dict]:
     units = []
-    section = None            # current section heading, lowercased ("experience")
+    section = None            # current section name ("experience"), from HEADINGS
     expecting_skills = False  # True right after a SKILLS heading
     pos = 0                   # running character count: where the current line starts
 
@@ -41,23 +55,35 @@ def split_resume(text: str) -> list[dict]:
             expecting_skills = False
             continue
 
-        # The first line under SKILLS is one unit. Checked before headings, so an
-        # all-caps skills line like "AWS, SQL" isn't mistaken for a heading.
-        if expecting_skills and stripped.lower() not in KNOWN_HEADINGS:
+        heading = _heading(stripped)  # section name, or None if not a heading
+
+        # The first line under SKILLS is one unit, unless it's another heading
+        # (an empty SKILLS section).
+        if expecting_skills and heading is None:
             start = line_start + len(content) - len(content.lstrip())
             units.append(_unit(units, section, stripped, start))
             expecting_skills = False
             continue
 
-        # All-caps line: a section heading such as EXPERIENCE or SKILLS
-        if stripped.isupper():
-            section = stripped.lower()
+        # A known heading such as EXPERIENCE or TECHNICAL SKILLS
+        if heading is not None:
+            section = heading
             expecting_skills = section == "skills"
             continue
 
         # Anything else (name, contact info, job titles, dates) is not a unit.
 
     return units
+
+
+def _heading(stripped: str) -> str | None:
+    """Return the section name if this line is a known heading, else None.
+
+    Cleans the line first so "Skills:", "SKILLS" and "TECHNICAL  SKILLS"
+    (two spaces) all match.
+    """
+    cleaned = " ".join(stripped.upper().rstrip(":").split())
+    return HEADINGS.get(cleaned)
 
 
 def _unit(units: list[dict], section: str | None, unit_text: str, start: int) -> dict:

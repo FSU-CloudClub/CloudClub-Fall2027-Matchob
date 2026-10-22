@@ -171,6 +171,26 @@ class TestSplitResume(unittest.TestCase):
     def test_empty_resume_has_no_units(self):
         self.assertEqual(split_resume(""), [])
 
+    def test_technical_skills_is_the_skills_section(self):
+        units = split_resume("TECHNICAL SKILLS\nPython, SQL\n")
+        self.assertEqual(units, [
+            {"id": "u1", "section": "skills", "text": "Python, SQL", "start": 17, "end": 28},
+        ])
+
+    def test_all_caps_company_name_is_not_a_heading(self):
+        units = split_resume("EXPERIENCE\nGOOGLE\n- Built Python tools\n")
+        self.assertEqual(units, [
+            {"id": "u1", "section": "experience", "text": "Built Python tools", "start": 20, "end": 38},
+        ])
+
+    def test_heading_with_colon_or_extra_spaces_still_counts(self):
+        for heading in ["Skills:", "SKILLS:", "TECHNICAL  SKILLS", "Technical Skills"]:
+            with self.subTest(heading=heading):
+                units = split_resume(heading + "\nPython, SQL\n")
+                self.assertEqual(len(units), 1)
+                self.assertEqual(units[0]["section"], "skills")
+                self.assertEqual(units[0]["text"], "Python, SQL")
+
 
 class TestSplitResumeOnAlex(unittest.TestCase):
     """The checklist tests on Lane 2's alex.txt."""
