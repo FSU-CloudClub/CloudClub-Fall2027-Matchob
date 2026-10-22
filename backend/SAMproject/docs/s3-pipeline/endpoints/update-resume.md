@@ -1,7 +1,6 @@
 # PATCH /resumes/{resumeId}
 
 **Contract:** [api-contracts.md → PATCH /resumes/{id}](../../general/api-contracts.md#patch-resumesid)
-**Status:** Not started
 **Code:** `src/s3-pipeline/app.py` → `update_resume(resume_id)`
 
 ## What it does

@@ -1,7 +1,6 @@
 # POST /profile
 
 **Contract:** [api-contracts.md → POST /profile](../../general/api-contracts.md#post-profile)
-**Status:** Done
 **Code:** `src/dynamodb-pipeline/app.py` → `create_user()`
 
 ## What it does

@@ -1,7 +1,6 @@
 # POST /resumes/upload-url
 
 **Contract:** [api-contracts.md → POST /resumes/upload-url](../../general/api-contracts.md#post-resumesupload-url)
-**Status:** Not started
 **Code:** `src/s3-pipeline/app.py` → `create_upload_url()`
 
 ## What it does
@@ -55,7 +54,7 @@ Write to DynamoDB **before** presigning. If the write fails, the client never ge
 
 ## Infrastructure
 - The `CreateUploadUrl` event, `S3CrudPolicy` and `DynamoDBCrudPolicy` already exist in `templates/s3-template.yaml`.
-- Needs `S3_PUBLIC_ENDPOINT` (setup task 2 in [README.md](../README.md#setup-tasks-do-once-before-the-endpoints)).
+- Needs `S3_PUBLIC_ENDPOINT` (already set up, see setup task 2 in [README.md](../README.md#setup-tasks-do-once-before-the-endpoints)).
 
 ## Done when
 ```bash
@@ -74,7 +73,7 @@ curl -i -X POST localhost:3001/resumes/upload-url -H "X-Local-User: nobody" -H "
 ## Gotchas
 - The upload URL must contain `localhost:9090`, not `s3:9090`. If it says `s3:9090`, you presigned with `s3` instead of `presign_client`.
 - The `PUT` to S3 must send exactly the signed `Content-Type`, or S3 rejects it with `SignatureDoesNotMatch` (403).
-- `SET resumes.<id>` fails with `ValidationException` if the profile has no `resumes` map at all. Profiles from `POST /profile` always have one; the old seed user doesn't (setup task 3).
+- `SET resumes.<id>` fails with `ValidationException` if the profile has no `resumes` map at all. Profiles from `POST /profile` and the local seed user always have one.
 - Don't use the client's `fileName` in the S3 key. It can contain `/`, spaces or `..`. It's only the display `name`.
 
 ---

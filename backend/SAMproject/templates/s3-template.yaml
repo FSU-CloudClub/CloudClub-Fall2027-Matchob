@@ -21,6 +21,7 @@ Globals:
         UPLOAD_BUCKET: !Ref UploadBucket
         DYNAMODB_ENDPOINT: ""
         S3_ENDPOINT: ""
+        S3_PUBLIC_ENDPOINT: ""
 
 Resources:
   SharedLayer:

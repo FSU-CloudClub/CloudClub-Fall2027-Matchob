@@ -1,7 +1,6 @@
 # DELETE /resumes/{resumeId}
 
 **Contract:** [api-contracts.md → DELETE /resumes/{id}](../../general/api-contracts.md#delete-resumesid)
-**Status:** Not started
 **Code:** `src/s3-pipeline/app.py` → `delete_resume(resume_id)`
 
 ## What it does

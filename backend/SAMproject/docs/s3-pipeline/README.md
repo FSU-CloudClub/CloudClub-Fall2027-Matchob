@@ -7,29 +7,29 @@
 | | |
 |---|---|
 | Template | `templates/s3-template.yaml` (`ResumesStack` in the root) |
-| Code | `src/s3-pipeline/app.py`, `src/s3-pipeline/resume_helpers.py` (to create) |
+| Code | `src/s3-pipeline/app.py`, `src/s3-pipeline/resume_helpers.py` |
 | Contract | [api-contracts.md → Resumes](../general/api-contracts.md#resumes) |
 | Helpers | [helpers.md](helpers.md) and [shared-helpers.md](../general/shared-helpers.md) |
 
 ## Endpoints
 
-| Endpoint | Function | Doc | Status |
-|---|---|---|---|
-| `GET /resumes` | `list_resumes()` | [list-resumes.md](endpoints/list-resumes.md) | Not started |
-| `POST /resumes/upload-url` | `create_upload_url()` | [create-upload-url.md](endpoints/create-upload-url.md) | Not started |
-| `PATCH /resumes/{resumeId}` | `update_resume(resume_id)` | [update-resume.md](endpoints/update-resume.md) | Not started |
-| `DELETE /resumes/{resumeId}` | `delete_resume(resume_id)` | [delete-resume.md](endpoints/delete-resume.md) | Not started |
-| `GET /resumes/{resumeId}/download-url` | `create_download_url(resume_id)` | [create-download-url.md](endpoints/create-download-url.md) | Not started |
+| Endpoint | Function | Doc |
+|---|---|---|
+| `GET /resumes` | `list_resumes()` | [list-resumes.md](endpoints/list-resumes.md) |
+| `POST /resumes/upload-url` | `create_upload_url()` | [create-upload-url.md](endpoints/create-upload-url.md) |
+| `PATCH /resumes/{resumeId}` | `update_resume(resume_id)` | [update-resume.md](endpoints/update-resume.md) |
+| `DELETE /resumes/{resumeId}` | `delete_resume(resume_id)` | [delete-resume.md](endpoints/delete-resume.md) |
+| `GET /resumes/{resumeId}/download-url` | `create_download_url(resume_id)` | [create-download-url.md](endpoints/create-download-url.md) |
 
 Suggested order: setup tasks → `create-upload-url` (nothing else works without a resume) → `list-resumes` → `create-download-url` → `update-resume` → `delete-resume`.
 
 ## Setup tasks (do once, before the endpoints)
 
-1. **Create `resume_helpers.py`** with the helpers in [helpers.md](helpers.md). Every endpoint uses them.
-2. **Add a public S3 endpoint for signing URLs.** Locally, the Lambda reaches s3mock at `http://s3:9090`, but a presigned URL signed for that host doesn't work from your laptop or browser, which only know `localhost:9090`. The host is part of the signature, so you can't just rewrite the URL afterwards. Sign with a second client instead (see `presign_client` in [helpers.md](helpers.md)). Infrastructure:
-   - `templates/s3-template.yaml` → `Globals.Function.Environment.Variables`: add `S3_PUBLIC_ENDPOINT: ""`. Empty means real S3 in AWS.
-   - `env.json` and `env.example.json`: add `"S3_PUBLIC_ENDPOINT": "http://localhost:9090"`.
-3. **Update the local seed user.** `docker/seed/users.json` still has the old `name` and `education` fields and no `resumes` map. Writing `resumes.<id>` to a profile with no `resumes` map fails with a `ValidationException`. Replace the item with one that matches the [profile data model](../dynamodb-pipeline/README.md#data-model), including `"resumes": {"M": {}}`. Profiles created through `POST /profile` already have it.
+All done. Kept here so you know what's already in place.
+
+1. ~~**Create `resume_helpers.py`**~~ Done: every helper in [helpers.md](helpers.md) is in `src/s3-pipeline/resume_helpers.py`, and `str_length` is in `matchob_common/validators.py`.
+2. ~~**Declare `S3_PUBLIC_ENDPOINT`.**~~ Done: `templates/s3-template.yaml` declares it as `""` (real S3 in AWS), and `env.example.json` sets it to `http://localhost:9090`. The Lambda talks to s3mock at `http://s3:9090` (`S3_ENDPOINT`), but presigned URLs must say `localhost:9090` for your browser, and the host is part of the signature. So `presign_client` signs with `S3_PUBLIC_ENDPOINT`; signing makes no network call. If your `env.json` predates these, copy `S3_ENDPOINT` and `S3_PUBLIC_ENDPOINT` from `env.example.json` (`dev.py` only creates `env.json` when it's missing).
+3. ~~**Update the local seed user.**~~ Done: `docker/seed/users.json` matches the [profile data model](../dynamodb-pipeline/README.md#data-model), including `"resumes": {"M": {}}`.
 
 ## Infrastructure
 
@@ -52,7 +52,7 @@ Everything is in `templates/s3-template.yaml`. All 5 routes are already declared
 | `USERS_TABLE` | The table name from `ProfileStack` | `MatchobUsers` |
 | `UPLOAD_BUCKET` | The generated bucket name | `matchob-uploads` (created by s3mock on start) |
 | `S3_ENDPOINT` | `""` (real S3) | `http://s3:9090` |
-| `S3_PUBLIC_ENDPOINT` | `""` (real S3) | `http://localhost:9090`. Setup task 2 |
+| `S3_PUBLIC_ENDPOINT` | `""` (real S3) | `http://localhost:9090` |
 | `DYNAMODB_ENDPOINT` | `""` (real DynamoDB) | `http://dynamodb:8000` |
 
 A presigned URL carries the Lambda role's permissions, so `S3CrudPolicy` is what allows the browser's upload and download. No extra permission is needed for presigning itself.

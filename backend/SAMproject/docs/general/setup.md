@@ -97,7 +97,9 @@ docker compose down
   "Parameters": {                                  // applies to every function
     "USERS_TABLE": "MatchobUsers",                 // real name (sam local can't resolve !Ref)
     "DYNAMODB_ENDPOINT": "http://dynamodb:8000",   // Compose service name + container port
-    "S3_ENDPOINT": "http://s3:9090"                // same for S3
+    "S3_ENDPOINT": "http://s3:9090",               // same for S3
+    "S3_PUBLIC_ENDPOINT": "http://localhost:9090", // host your browser uses, for presigned URLs
+    "UPLOAD_BUCKET": "matchob-uploads"             // bucket s3mock creates on start
   }
 }
 ```
@@ -118,7 +120,7 @@ docker compose down
 ## Rules
 
 - **Always build before `start-api`.** Without a build, `sam local` runs the raw source code, and the shared layer (`matchob_common`) is missing. `.aws-sam/` is gitignored, so a fresh clone has no build.
-- **Adding a Lambda env var:** declare it in `template.yaml` under `Globals → Function → Environment` first. `sam local` ignores any variable in `env.json` that the template doesn't declare. Then add the local value to `env.example.json`.
+- **Adding a Lambda env var:** declare it in that function's template in `templates/` (under `Globals → Function → Environment`) first. `sam local` ignores any variable in `env.json` that the template doesn't declare. Then add the local value to `env.example.json`.
 - **Never** add `AWS_SAM_LOCAL` anywhere. See [auth.md](auth.md).
 - `.env` and `env.json` are gitignored. Put shared defaults in the `.example` files.
 

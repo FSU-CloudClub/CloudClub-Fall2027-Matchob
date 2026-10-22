@@ -1,7 +1,6 @@
 # GET /resumes/{resumeId}/download-url
 
 **Contract:** [api-contracts.md → GET /resumes/{id}/download-url](../../general/api-contracts.md#get-resumesiddownload-url)
-**Status:** Not started
 **Code:** `src/s3-pipeline/app.py` → `create_download_url(resume_id)`
 
 ## What it does

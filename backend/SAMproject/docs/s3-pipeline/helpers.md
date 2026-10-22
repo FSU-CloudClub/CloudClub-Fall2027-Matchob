@@ -1,10 +1,10 @@
 # Resumes Pipeline Helpers
 
-**Code:** `src/s3-pipeline/resume_helpers.py` (to create). Setup task 1 in [README.md](README.md).
+**Code:** `src/s3-pipeline/resume_helpers.py`.
 
-None of these exist yet. This is the design: names, parameters, return values and behavior. Generic helpers (`read_json_body`, `to_json`, `validate_fields`, the validators) already exist in [shared-helpers.md](../general/shared-helpers.md).
+Everything below is implemented. This is the reference for names, parameters, return values and behavior. Generic helpers (`read_json_body`, `to_json`, `validate_fields`, the validators) already exist in [shared-helpers.md](../general/shared-helpers.md).
 
-`resume_helpers.py` needs `BUCKET`, `table` and the presign client. Either create them in `resume_helpers.py` and import them into `app.py`, or pass them in as parameters. Don't create the clients twice.
+`resume_helpers.py` creates `table`, `BUCKET` and `presign_client`. `app.py` imports `table` and `BUCKET` from it, so each client is created once. `app.py` keeps its own `s3` client for calls the Lambda makes itself, like `delete_object`.
 
 ## Constants
 
@@ -17,7 +17,7 @@ None of these exist yet. This is the design: names, parameters, return values an
 
 Follow the shared validator rule: return the cleaned value or raise `ValueError("must ...")`.
 
-### `str_length(low, high)` → validator (add to `matchob_common/validators.py`)
+### `str_length(low, high)` → validator (in `matchob_common/validators.py`)
 Builds a validator that accepts a string whose trimmed length is from `low` to `high`, and returns it trimmed. Message: `must be {low}-{high} characters`. Generic, so it goes in the shared layer.
 
 ### `tag_list(value)` → `list[str]`

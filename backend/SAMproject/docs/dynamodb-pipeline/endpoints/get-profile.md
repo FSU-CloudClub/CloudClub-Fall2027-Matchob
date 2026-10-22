@@ -1,7 +1,6 @@
 # GET /profile
 
 **Contract:** [api-contracts.md → GET /profile](../../general/api-contracts.md#get-profile)
-**Status:** Done
 **Code:** `src/dynamodb-pipeline/app.py` → `get_profile()`
 
 ## What it does
