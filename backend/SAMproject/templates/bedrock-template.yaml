@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AI service - Bedrock Lambda
+
+Parameters:
+  UsersTableName:
+    Type: String
+
+Globals:
+  Function:
+    Layers:
+      - !Ref SharedLayer
+    Runtime: python3.13
+    Timeout: 30
+    Environment:
+      Variables:
+        POWERTOOLS_LOG_LEVEL: INFO
+        USERS_TABLE: !Ref UsersTableName
+        BEDROCK_MODEL_ID: ""
+        DYNAMODB_ENDPOINT: ""
+
+Resources:
+  SharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: ../src/shared
+      CompatibleRuntimes:
+        - python3.13
+    Metadata:
+      BuildMethod: python3.13
+
+  # No API yet: add an AWS::Serverless::Api and Events here once the AI endpoints
+  # are in docs/general/api-contracts.md. An API with no routes fails to deploy.
+  BedrockFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src/bedrock-pipeline/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: bedrock
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTableName
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+              Resource: "*"

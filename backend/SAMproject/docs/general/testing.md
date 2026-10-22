@@ -155,3 +155,7 @@ Check terminal 1 (the `sam local` output) first. The handler prints `DYNAMODB_EN
 | 401 even with `X-Local-User` | The function doesn't use `get_user_id`, or the request isn't going through `sam local`. |
 | `NoSuchBucket` | Bucket name in `.env` / `UPLOAD_BUCKET` doesn't match. Run `docker compose up -d` to recreate s3. |
 | Windows: `curl` errors about `-H` or `-i` | Use `curl.exe` (see step 5). |
+
+---
+
+New to a term? See the [glossary](glossary.md).

@@ -56,7 +56,7 @@ def lambda_handler(event: dict, context: LambdaContext) -> dict:
 1. **Dependency:** `aws-lambda-powertools>=3.35,<4` in `src/shared/requirements.txt`. The shared layer installs it, so every function gets it.
 2. **Env vars:**
    - `POWERTOOLS_LOG_LEVEL: INFO` in `Globals → Function → Environment`
-   - `POWERTOOLS_SERVICE_NAME: <function-name>` in each function's own `Environment` (see [adding-lambda-functions.md](adding-lambda-functions.md))
+   - `POWERTOOLS_SERVICE_NAME: <function-name>` in each function's own `Environment` (see [nested-stacks.md](nested-stacks.md))
 3. **Python 3.10+.** We use 3.13.
 4. Run `sam build` after adding the dependency.
 
@@ -74,9 +74,9 @@ def lambda_handler(event: dict, context: LambdaContext) -> dict:
 |---|---|
 | `dict` / `list` | 200, JSON body, `Content-Type: application/json` |
 | `(dict, 404)` | That status code with a JSON body |
-| Errors | Always `{"error": "<message>"}`, matching `auth-contract.md` |
+| Errors | Always `{"error": "<message>"}`, matching [api-contracts.md](api-contracts.md) |
 
-DynamoDB `Decimal` values are serialized as **strings** (`"age": "21"`). Convert them to `int` before returning if the frontend needs numbers.
+DynamoDB returns numbers as `Decimal`, which Powertools serializes as **strings** (`"age": "21"`) by default. Create the resolver with `APIGatewayRestResolver(serializer=to_json)` (from `matchob_common.http`) and they're sent as JSON numbers instead.
 
 ## What's happening
 
@@ -85,3 +85,7 @@ DynamoDB `Decimal` values are serialized as **strings** (`"age": "21"`). Convert
 - **Path params.** `@app.get("/jobs/<job_id>")` passes `job_id` as a function argument. The path must also exist as an `Events` route in the template.
 - **Logging.** `logger.info(...)` prints one JSON line with `service`, `level`, `cold_start`, `function_request_id` and `correlation_id` (the API Gateway request ID). Put searchable details in `extra={...}`. Never log tokens or full request bodies. Use `logger.exception` inside `except` to include the stack trace.
 - **One function per resource.** A Lambda can hold several routes (e.g. GET and PUT `/profile` in one `app.py`), but each route still needs its own `Events` entry in the template.
+
+---
+
+New to a term? See the [glossary](glossary.md).

@@ -65,7 +65,7 @@ s3.put_object(Bucket=BUCKET, Key=key, Body=data,                # upload bytes
 obj = s3.get_object(Bucket=BUCKET, Key=key)                     # download
 data = obj["Body"].read()                                       # bytes
 
-url = s3.generate_ed_url(                                # temporary URL the frontend uploads to directly
+url = s3.generate_presigned_url(                         # temporary URL the frontend uploads to directly
     "put_object",                                               # operation the URL allows
     Params={"Bucket": BUCKET, "Key": key},                      # where it goes
     ExpiresIn=300,                                              # valid for 5 minutes
@@ -90,7 +90,7 @@ stop = resp["stopReason"]                                       # "max_tokens" m
 
 - Copy the exact model ID from the Bedrock console (Model catalog) for our region. Some accounts need the inference-profile form (`us.` prefix).
 - **Locally this calls real AWS and costs money.** SAM passes your AWS profile into the Lambda container.
-- Raise the function's `Timeout` for Bedrock calls (see [adding-lambda-functions.md](adding-lambda-functions.md)).
+- Raise the function's `Timeout` for Bedrock calls (see [nested-stacks.md](nested-stacks.md)).
 
 ## Errors
 
@@ -102,3 +102,7 @@ except ClientError as e:                                        # all AWS servic
     logger.exception("aws call failed", extra={"code": code})   # log it (see powertools.md)
     return {"error": "Internal server error"}, 500              # never return AWS error text to clients
 ```
+
+---
+
+New to a term? See the [glossary](glossary.md).

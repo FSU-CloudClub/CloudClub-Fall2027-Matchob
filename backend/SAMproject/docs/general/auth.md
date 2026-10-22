@@ -2,7 +2,7 @@
 
 **Purpose:** How a Lambda learns who is calling it, in production and locally.
 **Tech:** Amazon Cognito, API Gateway Cognito authorizer, shared `get_user_id` helper (`src/shared/matchob_common/auth.py`, shipped as a Lambda layer).
-**Role in the project:** Every protected endpoint calls one function to get the user ID, so auth works the same in every Lambda and local testing doesn't need real logins. The frontend/backend token rules are in `auth-contract.md`.
+**Role in the project:** Every protected endpoint calls one function to get the user ID, so auth works the same in every Lambda and local testing doesn't need real logins. The frontend/backend token rules are in [api-contracts.md](api-contracts.md).
 
 ## Production (AWS)
 
@@ -27,3 +27,7 @@ The Lambda never checks tokens itself. API Gateway already did.
 - **Never** add `AWS_SAM_LOCAL` to `template.yaml`, `env.json`, or any deployed config. Doing so would let anyone choose their user ID in production.
 - `None` from `get_user_id` means return `{"error": "Unauthorized"}` with status 401.
 - Shared helpers like this live in `src/shared/matchob_common/`. Change them in one place. Every function gets the update after the next `sam build`.
+
+---
+
+New to a term? See the [glossary](glossary.md).

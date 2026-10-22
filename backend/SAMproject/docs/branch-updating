@@ -1,7 +1,0 @@
-when main is updated:
-
-git checkout main  # Switch to the main branch
-git pull origin main  # Pull the latest changes from the remote main branch
-git checkout my-branch
-git merge main  # Merge the latest changes from main into your branch
-

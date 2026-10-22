@@ -121,3 +121,7 @@ docker compose down
 - **Adding a Lambda env var:** declare it in `template.yaml` under `Globals → Function → Environment` first. `sam local` ignores any variable in `env.json` that the template doesn't declare. Then add the local value to `env.example.json`.
 - **Never** add `AWS_SAM_LOCAL` anywhere. See [auth.md](auth.md).
 - `.env` and `env.json` are gitignored. Put shared defaults in the `.example` files.
+
+---
+
+New to a term? See the [glossary](glossary.md).
