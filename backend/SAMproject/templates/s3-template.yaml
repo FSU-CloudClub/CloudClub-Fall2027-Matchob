@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Resumes service - uploads bucket, API, and resumes Lambda
+
+Parameters:
+  UserPoolArn:
+    Type: String
+  UsersTableName:
+    Type: String
+
+Globals:
+  Function:
+    Layers:
+      - !Ref SharedLayer
+    Runtime: python3.13
+    Timeout: 10
+    Environment:
+      Variables:
+        POWERTOOLS_LOG_LEVEL: INFO
+        USERS_TABLE: !Ref UsersTableName
+        UPLOAD_BUCKET: !Ref UploadBucket
+        DYNAMODB_ENDPOINT: ""
+        S3_ENDPOINT: ""
+        S3_PUBLIC_ENDPOINT: ""
+
+Resources:
+  SharedLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: ../src/shared
+      CompatibleRuntimes:
+        - python3.13
+    Metadata:
+      BuildMethod: python3.13
+
+  # Private bucket for resume files. The browser uploads and downloads with presigned URLs,
+  # so it needs CORS for PUT and GET, but nothing in it is public.
+  UploadBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedMethods:
+              - GET
+              - PUT
+            AllowedOrigins:
+              - "*"
+            AllowedHeaders:
+              - "*"
+            MaxAge: 3000
+
+  ResumesApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Ref UserPoolArn
+
+  ResumesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src/s3-pipeline/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: resumes
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref UploadBucket
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTableName
+      Events:
+        ListResumes:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumesApi
+            Path: /resumes
+            Method: get
+        CreateUploadUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumesApi
+            Path: /resumes/upload-url
+            Method: post
+        UpdateResume:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumesApi
+            Path: /resumes/{resumeId}
+            Method: patch
+        DeleteResume:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumesApi
+            Path: /resumes/{resumeId}
+            Method: delete
+        CreateDownloadUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ResumesApi
+            Path: /resumes/{resumeId}/download-url
+            Method: get
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${ResumesApi}.execute-api.${AWS::Region}.amazonaws.com/dev"
+  UploadBucketName:
+    Value: !Ref UploadBucket
