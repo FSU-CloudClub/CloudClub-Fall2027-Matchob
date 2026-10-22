@@ -37,12 +37,19 @@ function cancelChanges() {
 }
 
 function addTag() {
-  const tag = newTag.trim(); 
-  if (tag && !tags.includes(tag)) {
-    setTags([...tags, tag]); 
+  const tag = newTag.trim();
+
+  if (
+    tag &&
+    !tags.some(
+      (existingTag) =>
+        existingTag.toLowerCase() === tag.toLowerCase()
+    )
+  ) {
+    setTags([...tags, tag]);
   }
 
-  setNewTag(""); 
+  setNewTag("");
 }
 
 function removeTag(tagToRemove: string) {
@@ -50,16 +57,18 @@ function removeTag(tagToRemove: string) {
 
 }
   return (
-  <div>
-    <h3>{resume.name}</h3>
+  <div className="resume-metadata-editor">
+    <h3 className="resume-title">{resume.name}</h3>
 
     {!editing ? (
       <div>
         {resume.tags.map((tag) => (
-          <span key={tag}>{tag} </span>
+        <span className="resume-tag" key={tag}>
+        {tag}
+        </span>
         ))}
 
-        <button
+        <button className="button button-secondary"
           type="button"
           onClick={() => {
             setName(resume.name);
@@ -73,7 +82,7 @@ function removeTag(tagToRemove: string) {
       </div>
     ) : (
       <div>
-        <label htmlFor="resume-name">Resume Name:</label>
+        <label className="resume-input" htmlFor="resume-name">Resume Name:</label>
         <input
           id="resume-name"
           type="text"
@@ -84,9 +93,10 @@ function removeTag(tagToRemove: string) {
         <h4>Tags</h4>
 
         {tags.map((tag) => (
-          <span key={tag}>
+          <span className="resume-tag" key={tag}>
             {tag}
             <button
+              className="resume-tag-remove"
               type="button"
               onClick={() => removeTag(tag)}
               aria-label={`Remove ${tag}`}
@@ -95,9 +105,8 @@ function removeTag(tagToRemove: string) {
             </button>
           </span>
         ))}
-
-        <div>
-          <input
+        <div className="resume-tag-input-row">
+          <input 
             type="text"
             placeholder="Enter a tag"
             value={newTag}
@@ -108,14 +117,20 @@ function removeTag(tagToRemove: string) {
             Add Tag
           </button>
         </div>
+        
+        <div className="resume-actions">
+          <button
+              type="button"
+              onClick={saveChanges}
+              disabled={!name.trim()}
+            >
+              Save
+          </button>
 
-        <button type="button" onClick={saveChanges}>
-          Save
-        </button>
-
-        <button type="button" onClick={cancelChanges}>
-          Cancel
-        </button>
+          <button type="button" onClick={cancelChanges}>
+            Cancel
+          </button>
+        </div>
       </div>
     )}
   </div>

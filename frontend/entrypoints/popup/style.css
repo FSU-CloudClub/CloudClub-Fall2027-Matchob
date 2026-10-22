@@ -59,3 +59,108 @@ body { margin: 0; }
 .navigation { display: flex; justify-content: space-between; gap: 12px; }
 .step-label { margin: 18px 0 0; color: #6a7972; font-size: 12px; }
 .sample-list { margin: 12px 0 0; padding-left: 20px; color: #50635c; line-height: 1.5; }
+
+/* Resume Tags + Rename */
+
+.resume-metadata-editor {
+  background: white;
+  border: 1px solid #d6e4da;
+  border-radius: 12px;
+  padding: 18px;
+  color: #1c3430;
+}
+
+.resume-title {
+  margin: 0 0 14px;
+  font-size: 17px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.resume-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 6px 8px 0;
+  padding: 6px 10px;
+  border-radius: 20px;
+  background: #e6eee9;
+  color: #246b55;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.resume-tag-remove {
+  border: none;
+  background: transparent;
+  color: #246b55;
+  cursor: pointer;
+  font-size: 15px;
+  padding: 0 2px;
+}
+
+.resume-tag-remove:hover {
+  color: #b42318;
+}
+
+.resume-tag-remove:focus-visible {
+  outline: 2px solid #246b55;
+  outline-offset: 2px;
+}
+
+.resume-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.resume-edit-form label {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.resume-edit-form h4 {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.resume-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #cbd9d0;
+  border-radius: 8px;
+  background: white;
+  color: #1c3430;
+  font: inherit;
+  font-size: 14px;
+}
+
+.resume-input:focus {
+  outline: 2px solid #8acdb0;
+  border-color: #246b55;
+}
+
+.resume-tag-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.resume-tag-input-row .resume-input {
+  min-width: 0;
+  flex: 1;
+}
+
+.resume-tag-input-row .button {
+  flex-shrink: 0;
+}
+
+.resume-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.resume-actions .button {
+  padding: 10px 14px;
+}

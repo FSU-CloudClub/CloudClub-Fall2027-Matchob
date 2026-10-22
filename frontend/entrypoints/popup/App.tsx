@@ -7,7 +7,6 @@ import { LandingScreen } from '../../pages/LandingScreen';
 import { RecommendationReviewScreen } from '../../pages/RecommendationReviewScreen';
 import { SupportingContextScreen } from '../../pages/SupportingContextScreen';
 import { flowSteps } from '../../utils/flow';
-
 const screens = [
   LandingScreen,
   ResumeVault,
@@ -21,6 +20,8 @@ export function App() {
   // TODO: Sprint 1 - Frontend Layout + Nav: replace preview steps with product navigation.
   const [step, setStep] = useState(0);
   const Screen = screens[step] ?? LandingScreen;
+
+  
 
   return (
     <main className="popup">
