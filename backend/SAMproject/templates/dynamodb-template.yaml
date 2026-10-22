@@ -14,6 +14,7 @@ Globals:
     Timeout: 10
     Environment:
       Variables:
+        POWERTOOLS_LOG_LEVEL: INFO
         USERS_TABLE: !Ref MatchobUsersTable
         DYNAMODB_ENDPOINT: ""
 
@@ -54,6 +55,9 @@ Resources:
     Properties:
       CodeUri: ../src/dynamodb-pipeline/
       Handler: app.lambda_handler
+      Environment:
+        Variables:
+          POWERTOOLS_SERVICE_NAME: profile
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref MatchobUsersTable
@@ -86,3 +90,5 @@ Resources:
 Outputs:
   ApiUrl:
     Value: !Sub "https://${ProfileApi}.execute-api.${AWS::Region}.amazonaws.com/dev"
+  UsersTableName:
+    Value: !Ref MatchobUsersTable

@@ -52,7 +52,6 @@ def test_creates_profile_using_authenticated_id(endpoint):
     status, body = invoke(json.dumps({
         "name": "  Sarah  ",
         "education": "  Florida State University  ",
-        "userId": "another-user",
     }))
     expected = {"userId": "user-123", "name": "Sarah", "education": "Florida State University"}
     assert status == 201
@@ -60,6 +59,13 @@ def test_creates_profile_using_authenticated_id(endpoint):
     table.put_item.assert_called_once_with(
         Item=expected, ConditionExpression="attribute_not_exists(userId)"
     )
+
+
+def test_rejects_client_supplied_user_id(endpoint):
+    invoke, table = endpoint
+    payload = {"name": "Sarah", "education": "FSU", "userId": "another-user"}
+    assert invoke(json.dumps(payload)) == (400, {"error": "Unknown fields: userId"})
+    table.put_item.assert_not_called()
 
 
 def test_unauthenticated_request_cannot_use_local_header_in_production(endpoint):
@@ -102,7 +108,7 @@ def test_required_fields(endpoint, field):
     invoke, table = endpoint
     payload = {"name": "Sarah", "education": "FSU"}
     del payload[field]
-    assert invoke(json.dumps(payload)) == (400, {"error": f"{field} must be a non-empty string"})
+    assert invoke(json.dumps(payload)) == (400, {"error": f"{field} is required"})
     table.put_item.assert_not_called()
 
 

@@ -15,6 +15,21 @@ Resources:
       Parameters:
         UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
 
+  ResumesStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: templates/s3-template.yaml
+      Parameters:
+        UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
+        UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
+
+  BedrockStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: templates/bedrock-template.yaml
+      Parameters:
+        UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
+
 Outputs:
   UserPoolId:
     Value: !GetAtt SharedStack.Outputs.UserPoolId
@@ -22,3 +37,5 @@ Outputs:
     Value: !GetAtt SharedStack.Outputs.UserPoolClientId
   ProfileApiUrl:
     Value: !GetAtt ProfileStack.Outputs.ApiUrl
+  ResumesApiUrl:
+    Value: !GetAtt ResumesStack.Outputs.ApiUrl

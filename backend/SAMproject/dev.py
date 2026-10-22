@@ -140,7 +140,7 @@ def report_failure(status, body):
     print(f"[dev] status: {status}")
     print(f"[dev] body:   {body}")
     print("[dev] The sam local output above has the Lambda's traceback.")
-    print("[dev] See the Troubleshooting table in docs/setup.md.")
+    print("[dev] See the Troubleshooting table in docs/general/setup.md.")
     print("[dev] The API and containers are still running so you can debug.")
     print("[dev] Ctrl+C stops the API only. Run `docker compose down` when you're done.\n")
 
