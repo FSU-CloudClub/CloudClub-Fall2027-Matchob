@@ -109,11 +109,11 @@ Each person owns every task in their rows. Fill in names:
 
 | Person | Name |
 |---|---|
-| Person 1 | ______ |
-| Person 2 | ______ |
-| Person 3 | ______ |
-| Person 4 | ______ |
-| Person 5 | ______ |
+| Person 1 | Tommy |
+| Person 2 | Nate |
+| Person 3 | Cooper |
+| Person 4 | Schneider |
+| Person 5 | Santiago |
 
 ### Tasks
 
