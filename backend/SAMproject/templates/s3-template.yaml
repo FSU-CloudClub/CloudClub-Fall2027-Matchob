@@ -3,6 +3,8 @@ Transform: AWS::Serverless-2016-10-31
 Description: Resumes service - uploads bucket, API, and resumes Lambda
 
 Parameters:
+  UploadBucketName:
+    Type: String
   UserPoolArn:
     Type: String
   UsersTableName:
@@ -38,6 +40,7 @@ Resources:
   UploadBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: !Ref UploadBucketName
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true

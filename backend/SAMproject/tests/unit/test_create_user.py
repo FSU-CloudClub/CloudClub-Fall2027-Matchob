@@ -26,6 +26,8 @@ def valid_profile():
 @pytest.fixture
 def endpoint(monkeypatch):
     monkeypatch.setenv("USERS_TABLE", "MatchobUsers")
+    monkeypatch.setenv("UPLOAD_BUCKET", "TestUploads")
+    monkeypatch.setattr("boto3.client", MagicMock())
     monkeypatch.delenv("AWS_SAM_LOCAL", raising=False)
     resource = MagicMock()
     monkeypatch.setattr("boto3.resource", lambda *args, **kwargs: resource)

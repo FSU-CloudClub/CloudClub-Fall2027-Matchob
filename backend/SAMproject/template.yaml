@@ -2,6 +2,15 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Matchob backend - root stack that wires the service stacks together
 
+Parameters:
+  UploadBucketName:
+    Type: String
+    Default: ""
+    Description: Existing uploads bucket name when updating a deployed stack; leave empty for new stacks.
+
+Conditions:
+  HasUploadBucketName: !Not [!Equals [!Ref UploadBucketName, ""]]
+
 Resources:
   SharedStack:
     Type: AWS::Serverless::Application
@@ -13,6 +22,12 @@ Resources:
     Properties:
       Location: templates/dynamodb-template.yaml
       Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
         UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
 
   ResumesStack:
@@ -20,6 +35,12 @@ Resources:
     Properties:
       Location: templates/s3-template.yaml
       Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
         UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
         UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
 
