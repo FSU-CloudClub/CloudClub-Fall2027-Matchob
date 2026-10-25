@@ -28,8 +28,9 @@ LAMBDA_DIR = (
 
 sys.path.insert(0, str(LAMBDA_DIR))
 
-# Set environment variable before importing app.py
+# Set environment variables before importing app.py
 os.environ["USERS_TABLE"] = "MatchobUsers"
+os.environ["UPLOAD_BUCKET"] = "matchob-uploads"
 
 
 @dataclass
@@ -59,12 +60,12 @@ SARAH = {
 
 
 class TestProfileIsolation(unittest.TestCase):
-
     @classmethod
     def setUpClass(cls):
-        # Prevent real AWS calls during module import
-        with patch("boto3.resource"):
+        # Prevent real AWS clients from being created during module import
+        with patch("boto3.resource"), patch("boto3.client"):
             import app
+            cls.app = app
             cls.app = app
 
     def setUp(self):
