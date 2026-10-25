@@ -3,6 +3,8 @@ Transform: AWS::Serverless-2016-10-31
 Description: Profile service - users table, API, and profile Lambda
 
 Parameters:
+  UploadBucketName:
+    Type: String
   UserPoolArn:
     Type: String
 
@@ -58,7 +60,11 @@ Resources:
       Environment:
         Variables:
           POWERTOOLS_SERVICE_NAME: profile
+          UPLOAD_BUCKET: !Ref UploadBucketName
+          S3_ENDPOINT: ""
       Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref UploadBucketName
         - DynamoDBCrudPolicy:
             TableName: !Ref MatchobUsersTable
       Events:
