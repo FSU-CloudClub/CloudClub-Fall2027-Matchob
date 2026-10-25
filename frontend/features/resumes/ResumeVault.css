@@ -167,9 +167,11 @@
   flex-shrink: 0;
 }
 
+.resume-vault.screen { margin: 16px 0; }
+ 
 .resume-vault {
   display: flex;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
 }

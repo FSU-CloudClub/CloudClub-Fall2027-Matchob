@@ -1,6 +1,6 @@
 # Matchob frontend developer guide
 
-This guide describes the frontend **as it exists in this repository**. Matchob is intended to help people tailor resumes to job applications. Today, its Chrome extension has a popup that previews the planned flow and a side panel for a mock autofill review. It does not upload resumes, analyze jobs, fill real forms, or call the backend. Start in [`frontend/`](frontend/).
+This guide describes the frontend **as it exists in this repository**. Matchob is intended to help people tailor resumes to job applications. Today, its Chrome extension has a popup that previews the planned flow and a side panel for a mock autofill review. The popup includes a mock PDF upload preview, but it does not save resumes to a backend, analyze jobs, or fill real forms. Start in [`frontend/`](frontend/).
 
 ## 1. What runs today
 
@@ -34,7 +34,7 @@ npm run dev
 
 `npm install` installs the dependencies and automatically runs the `postinstall` script (`wxt prepare`), which generates WXT support files. `npm run dev` runs `wxt -b chrome`; the project README says WXT opens Chrome with the extension loaded. Click or pin the **Matchob** extension icon to open its popup. On Windows PowerShell, use `npm.cmd` instead of `npm` if PowerShell blocks the npm script.
 
-In the popup, click **Get Started**, then **Back** and **Next**. You should see the landing, Resume Vault, job description, supporting context, and recommendation review screens. Click **Open side panel** to see the mock autofill review. The recommendation screen shows two sample suggestions. The Vault upload button is disabled. This is a **UI smoke test**, not a test of uploads or AI.
+In the popup, click **Get Started**, then **Back** and **Next**. You should see the landing, Resume Vault, job description, supporting context, and recommendation review screens. Click **Open side panel** to see the mock autofill review. The recommendation screen shows two sample suggestions. In the Vault, the upload button and drag-and-drop area accept a PDF into the preview; leaving the Vault or closing the popup clears it. This is a **UI smoke test**, not a test of backend uploads or AI.
 
 For a manual unpacked-extension check or a production build, run:
 
@@ -103,7 +103,7 @@ frontend/
 | [`entrypoints/sidepanel/`](frontend/entrypoints/sidepanel/) | WXT's side panel entrypoint. `main.tsx` renders the mock autofill review; `style.css` adjusts the panel layout. | Frontend, Autofill |
 | [`components/`](frontend/components/) | Reusable React UI: `AppLayout`, `Button`, and `ThemeToggle`. Add broadly shared controls here. | Frontend |
 | [`pages/`](frontend/pages/) | Workflow screens. Most are explanatory placeholders; recommendation review reads a fixture. Edit when building those views. | Frontend, AI for review UI |
-| [`features/resumes/`](frontend/features/resumes/) | Resume-specific UI. Only Vault and its disabled upload button render now; rename, delete, and preview components return `null`. Edit as each resume task is implemented. | Frontend, Data |
+| [`features/resumes/`](frontend/features/resumes/) | Resume-specific UI. Vault and its mock PDF upload component render now; rename, delete, and preview components return `null`. Edit as each resume task is implemented. | Frontend, Data |
 | [`mocks/`](frontend/mocks/) | Typed sample resume metadata and recommendation suggestions. Use to develop views without a server; these are not persisted. | Frontend, AI, Data |
 | [`services/`](frontend/services/) | Frontend API boundary. `resumeApi.ts` has a mocked read and explicit mutation stubs. Replace or extend service methods when an API contract is agreed. | Frontend, Data, Infrastructure |
 | [`types/`](frontend/types/) | Shared TypeScript shapes. Update with frontend and backend owners when payloads change. | All teams |
