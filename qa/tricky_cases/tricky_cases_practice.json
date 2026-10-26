@@ -1,0 +1,29 @@
+[
+  {
+    "name": "growth called doubled when the math says 75%",
+    "kind": "made-up number",
+    "source": "Grew the Tidewell Bike Co. email list from 400 to 700 subscribers in one season.",
+    "suggestion": "Doubled the Tidewell Bike Co. email list in one season.",
+    "expected": "unsupported",
+    "why": "400 to 700 is a 75% increase, so \"doubled\" exaggerates the result.",
+    "pile": "practice"
+  },
+  {
+    "name": "sibling database swapped (PostgreSQL to MySQL)",
+    "kind": "tool never used",
+    "source": "Stored order data in PostgreSQL for Tidewell Bike Co.",
+    "suggestion": "Stored order data in MySQL for Tidewell Bike Co.",
+    "expected": "unsupported",
+    "why": "MySQL is a different database from PostgreSQL, and the resume only names PostgreSQL.",
+    "pile": "practice"
+  },
+  {
+    "name": "control: correct percentage computed from the resume's numbers",
+    "kind": "honest rewrite (control)",
+    "source": "Grew the Marrow Creek chess club newsletter from 600 to 900 subscribers in one semester.",
+    "suggestion": "Grew the Marrow Creek chess club newsletter's subscribers by 50% in one semester.",
+    "expected": "supported",
+    "why": "600 to 900 is exactly a 50% increase, and the labeling guide counts a rewrite as supported when the math checks out.",
+    "pile": "practice"
+  }
+]
