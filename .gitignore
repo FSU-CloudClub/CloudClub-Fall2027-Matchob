@@ -15,3 +15,7 @@ dist/
 
 # Logs
 *.log
+
+# Python virtual environments and cache folders
+.venv/
+__pycache__/
