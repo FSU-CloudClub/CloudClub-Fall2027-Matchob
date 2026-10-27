@@ -12,7 +12,11 @@
 | `401` | Missing or invalid token |
 | `404` | It doesn't exist, or it belongs to another user |
 | `409` | It already exists |
+| `422` | The AI guardrail blocked the request |
 | `500` | Server error |
+| `502` | The AI returned something that isn't a JSON object |
+| `503` | The AI is busy. Try again in a few seconds |
+| `504` | The AI took too long |
 
 When deployed, a bad token is rejected by API Gateway before the Lambda runs, so that `401` body is `{ "message": "Unauthorized" }` instead.
 
@@ -33,7 +37,6 @@ When deployed, a bad token is rejected by API Gateway before the Lambda runs, so
 | `year` | string | Frontend | Required: `freshman`, `sophomore`, `junior`, `senior` or `graduate` |
 | `major` | string | Frontend | Required, non-empty |
 | `websites` | string[] | Frontend | Optional, defaults to `[]`. Each must start with `http://` or `https://` |
-| `defaultResume` | string \| null | Frontend | Optional, defaults to `null`. Must be a key of `resumes`, so it can only be set with `PUT` once a resume exists. `null` clears it |
 | `resumes` | object | Backend | Every resume the user has, keyed by resume ID. Only the resume endpoints change it, so it always matches S3. Starts as `{}` |
 | `structuredJsonResume` | object \| null | Backend | Filled in by resume parsing. `null` until then |
 
@@ -66,7 +69,7 @@ What `resumes` looks like on the profile:
 
 ### `POST /profile`
 
-**Send:** every required field. `websites` is optional. Leave out `defaultResume`, because a new profile has no resumes yet.
+**Send:** every required field. `websites` is optional.
 
 ```json
 {
@@ -84,7 +87,7 @@ What `resumes` looks like on the profile:
 | Status | Returns | Why |
 |---|---|---|
 | `201` | Profile object | Created |
-| `400` | error | A required field is missing or invalid, a backend-only field was sent, or `defaultResume` was set |
+| `400` | error | A required field is missing or invalid, or a backend-only field was sent |
 | `409` | error | The user already has a profile. Use `PUT` |
 
 ### `PUT /profile`
@@ -92,13 +95,13 @@ What `resumes` looks like on the profile:
 **Send:** only the fields you're changing. The rest stay the same.
 
 ```json
-{ "major": "Data Science", "defaultResume": "3f6c1b2e-..." }
+{ "major": "Data Science" }
 ```
 
 | Status | Returns | Why |
 |---|---|---|
 | `200` | The full profile object | So the frontend doesn't have to merge changes itself |
-| `400` | error | Empty body, invalid field, a backend-only field was sent, or `defaultResume` isn't one of the user's resumes |
+| `400` | error | Empty body, invalid field, or a backend-only field was sent |
 | `404` | error | No profile yet. Use `POST` |
 
 ### `DELETE /profile`
@@ -194,7 +197,7 @@ await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, 
 
 | Status | Returns | Why |
 |---|---|---|
-| `200` | `{ "message": "Resume deleted" }` | Deletes the S3 file and removes it from `resumes`. Clears `defaultResume` if it was the default |
+| `200` | `{ "message": "Resume deleted" }` | Deletes the S3 file and removes it from `resumes` |
 | `404` | error | Not found, or not this user's |
 
 ### `GET /resumes/{id}/download-url`
@@ -207,6 +210,70 @@ Generates a fresh presigned **download** link for one resume. Use it when a link
 |---|---|---|
 | `200` | `{ "downloadUrl": "https://...", "expiresIn": 300 }` | `expiresIn` is in seconds |
 | `404` | error | Not found, or not this user's |
+
+---
+
+## Suggestions
+
+The frontend parses the resume the user picked for this application into plain text. It then sends that text, the job description and any supporting context here. The backend passes them to a prompt that's set up ahead of time in the Bedrock console, with its model, system prompt, output format and guardrail. It returns the model's JSON unchanged. Nothing is saved.
+
+### `POST /suggestions`
+
+**Send:** `jobDescription` matches the `JobDescription` type in `frontend/types/index.ts`.
+```json
+{
+  "resumeText": "Sarah Lee\nComputer Science, FSU...",
+  "jobDescription": {
+    "title": "Software Engineering Intern",
+    "company": "Acme",
+    "text": "We're looking for..."
+  },
+  "supportingContext": "I want to highlight my cloud club projects."
+}
+```
+
+| Field | Rules |
+|---|---|
+| `resumeText` | Required, 1–20,000 characters |
+| `jobDescription.title` | Required, 1–200 characters |
+| `jobDescription.company` | Optional, 1–200 characters |
+| `jobDescription.text` | Required, 1–20,000 characters |
+| `supportingContext` | Optional, 1–2,000 characters. What the user wants to highlight, from the supporting context screen |
+
+The limits keep calls fast and cheap. Longer inputs take longer to process, which brings the 29-second limit below closer.
+
+| Status | Returns | Why |
+|---|---|---|
+| `200` | The model's JSON object, unchanged | |
+| `400` | error | Missing, empty, too long or unknown field |
+| `422` | error | The guardrail blocked the input or the output |
+| `502` | error | The model's reply wasn't a JSON object |
+| `503` | error | Bedrock throttled the call. Retry after a few seconds |
+| `504` | error | No answer within the time limit. Safe to retry |
+
+**The response shape is set by the Bedrock prompt, not the backend.** The prompt must return this, because each item is the `Recommendation` type in `frontend/types/index.ts`:
+
+```json
+{
+  "suggestions": [
+    {
+      "id": "1",
+      "suggestion": "Quantify the impact of the API you built, e.g. requests per day or latency saved.",
+      "reason": "The posting asks for experience with high-traffic services."
+    }
+  ]
+}
+```
+
+| Field | Rules |
+|---|---|
+| `id` | String, unique within the response. The model numbers them `"1"`, `"2"`, ... |
+| `suggestion` | String. The change to make |
+| `reason` | String. Why it fits this job |
+
+If the prompt's format changes, update this example and the `Recommendation` type in the same PR.
+
+**Time limit:** API Gateway ends any request after 29 seconds and returns its own `504` with the body `{ "message": "Endpoint request timed out" }`. The backend stops waiting on Bedrock before that, so it normally sends the `504` itself, as `{ "error": ... }`. Treat a `504` as retryable either way.
 
 ---
 
