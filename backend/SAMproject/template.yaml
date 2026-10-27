@@ -2,6 +2,16 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: Matchob backend - root stack that wires the service stacks together
 
+# IDs of the prompt and guardrail made in the Bedrock console. Set them with
+# parameter_overrides in samconfig.toml. See docs/bedrock-pipeline/README.md.
+Parameters:
+  PromptArn:
+    Type: String
+  GuardrailId:
+    Type: String
+  GuardrailVersion:
+    Type: String
+
 Resources:
   SharedStack:
     Type: AWS::Serverless::Application
@@ -28,7 +38,10 @@ Resources:
     Properties:
       Location: templates/bedrock-template.yaml
       Parameters:
-        UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
+        UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
+        PromptArn: !Ref PromptArn
+        GuardrailId: !Ref GuardrailId
+        GuardrailVersion: !Ref GuardrailVersion
 
 Outputs:
   UserPoolId:
@@ -39,3 +52,5 @@ Outputs:
     Value: !GetAtt ProfileStack.Outputs.ApiUrl
   ResumesApiUrl:
     Value: !GetAtt ResumesStack.Outputs.ApiUrl
+  SuggestionsApiUrl:
+    Value: !GetAtt BedrockStack.Outputs.ApiUrl
