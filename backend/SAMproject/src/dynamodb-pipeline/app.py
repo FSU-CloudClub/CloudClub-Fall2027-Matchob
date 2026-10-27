@@ -13,6 +13,8 @@ from profile_helpers import PROFILE_FIELDS, profile_exists
 
 dynamodb = boto3.resource("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT") or None)
 table = dynamodb.Table(os.environ["USERS_TABLE"])
+s3 = boto3.client("s3", endpoint_url=os.environ.get("S3_ENDPOINT") or None)
+BUCKET = os.environ["UPLOAD_BUCKET"]
 
 logger = Logger()
 app = APIGatewayRestResolver(serializer=to_json)
@@ -150,13 +152,13 @@ def put_profile():
 
 @app.delete("/profile")
 def delete_user():
-    """DELETE /profile: delete the signed-in user's profile.
+    """DELETE /profile: delete the signed-in user's profile and stored resumes.
 
     Responses:
         200: {"message": "Profile deleted"}.
         401: No authenticated user.
         404: The user has no profile.
-        500: DynamoDB error.
+        500: DynamoDB or S3 cleanup error.
     """
     user_id = get_user_id(app.current_event.raw_event)
     if not user_id:
@@ -173,6 +175,16 @@ def delete_user():
 
     if item is None:
         return {"error": "Profile not found"}, 404
+
+    cleanup_failed = False
+    for resume in item.get("resumes", {}).values():
+        try:
+            s3.delete_object(Bucket=BUCKET, Key=resume["s3Key"])
+        except ClientError:
+            logger.exception("s3 resume deletion failed", extra={"user_id": user_id, "s3_key": resume["s3Key"]})
+            cleanup_failed = True
+    if cleanup_failed:
+        return {"error": "Internal server error"}, 500
 
     logger.info("profile deleted", extra={"user_id": user_id})
     return {"message": "Profile deleted"}

@@ -1,0 +1,37 @@
+Sam Patel
+sam@example.com | 850-555-0188 | North Harbor, FL
+
+EDUCATION
+North Harbor State University, North Harbor, FL
+B.S. in Information Technology, expected May 2027
+GPA 3.5; Dean's List Spring 2026
+Relevant coursework: Networking, Operating Systems, Systems Administration, Cybersecurity Basics
+Activities: NHSU Cyber Club (member), Peer tutor for intro IT courses
+Certifications: CompTIA A+ (2026), Microsoft 365 Fundamentals (2026)
+
+EXPERIENCE
+Help Desk Technician, NHSU Campus Tech Services, Aug 2025 - Present
+- Resolved about 25 help desk tickets per week for students and staff, with most closed in under 4 hours.
+- Completed password resets and account unlocks in Active Directory for over 300 users.
+- Imaged 40 laptops for a fall refresh using a standard Windows image and a setup checklist.
+IT Assistant, North Harbor Public Library, May 2025 - Aug 2025
+- Set up and repaired 15 public computers and fixed printer and Wi-Fi problems for visitors.
+- Wrote short how-to guides that cut repeat questions about the sign-in system.
+- Kept a simple inventory sheet of laptops, cables and tablets so nothing went missing.
+
+PROJECTS
+Home Lab Network (Windows Server, Active Directory, DHCP, DNS), Mar 2026
+- Built a small network with a router, switch and virtual machines to practice DHCP and DNS.
+- Created 20 test user accounts and group policies in Active Directory.
+- Wrote notes on each setup step so the lab can be rebuilt in an afternoon.
+Ticket Tracker Spreadsheet (Excel), Jan 2026
+- Made an Excel tracker that shows ticket counts and response times by week.
+- Added charts so the team could spot the busiest days.
+- Shared the tracker with two classmates and used their feedback to simplify it.
+Laptop Imaging Guide (Windows 11, PowerShell), Sep 2025
+- Wrote a step-by-step guide and a PowerShell script that renames and sets up new laptops.
+- Tested the steps on 5 spare machines and fixed three unclear steps.
+- Shared the guide with the IT club for practice sessions.
+
+SKILLS
+Active Directory, Windows 11, Microsoft 365, ticketing systems, PowerShell, DHCP, DNS, imaging, troubleshooting, customer service, Wi-Fi, printers

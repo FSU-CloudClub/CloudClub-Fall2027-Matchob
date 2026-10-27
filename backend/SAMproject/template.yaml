@@ -11,6 +11,14 @@ Parameters:
     Type: String
   GuardrailVersion:
     Type: String
+Parameters:
+  UploadBucketName:
+    Type: String
+    Default: ""
+    Description: Existing uploads bucket name when updating a deployed stack; leave empty for new stacks.
+
+Conditions:
+  HasUploadBucketName: !Not [!Equals [!Ref UploadBucketName, ""]]
 
 Resources:
   SharedStack:
@@ -23,6 +31,12 @@ Resources:
     Properties:
       Location: templates/dynamodb-template.yaml
       Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
         UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
 
   ResumesStack:
@@ -30,6 +44,12 @@ Resources:
     Properties:
       Location: templates/s3-template.yaml
       Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
         UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
         UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
 
