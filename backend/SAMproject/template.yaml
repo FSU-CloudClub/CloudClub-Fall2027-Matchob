@@ -1,45 +1,62 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: >
-  test
+Description: Matchob backend - root stack that wires the service stacks together
 
-  Sample SAM Template for test
+Parameters:
+  UploadBucketName:
+    Type: String
+    Default: ""
+    Description: Existing uploads bucket name when updating a deployed stack; leave empty for new stacks.
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
-Globals:
-  Function:
-    Timeout: 3
+Conditions:
+  HasUploadBucketName: !Not [!Equals [!Ref UploadBucketName, ""]]
 
-  Api:
-    TracingEnabled: true
 Resources:
-  HelloWorldFunction:
-    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  SharedStack:
+    Type: AWS::Serverless::Application
     Properties:
-      CodeUri: hello_world/
-      Handler: app.lambda_handler
-      Runtime: python3.14
-      Architectures:
-      - x86_64
-      Events:
-        HelloWorld:
-          Type: Api # More info about API Event Source: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#api
-          Properties:
-            Path: /hello
-            Method: get
+      Location: templates/shared-template.yaml
 
+  ProfileStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: templates/dynamodb-template.yaml
+      Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
+        UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
+
+  ResumesStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: templates/s3-template.yaml
+      Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
+        UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
+        UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
+
+  BedrockStack:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: templates/bedrock-template.yaml
+      Parameters:
+        UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: API Gateway endpoint URL for Prod stage for Hello World 
-      function
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/Prod/hello/"
-  HelloWorldFunction:
-    Description: Hello World Lambda Function ARN
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: Implicit IAM Role created for Hello World function
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  UserPoolId:
+    Value: !GetAtt SharedStack.Outputs.UserPoolId
+  UserPoolClientId:
+    Value: !GetAtt SharedStack.Outputs.UserPoolClientId
+  ProfileApiUrl:
+    Value: !GetAtt ProfileStack.Outputs.ApiUrl
+  ResumesApiUrl:
+    Value: !GetAtt ResumesStack.Outputs.ApiUrl

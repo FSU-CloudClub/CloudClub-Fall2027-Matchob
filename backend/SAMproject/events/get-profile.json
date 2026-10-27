@@ -1,0 +1,11 @@
+{
+    "httpMethod": "GET",
+    "path": "/profile",
+    "requestContext": {
+      "authorizer": {
+        "claims": {
+          "sub": "12345"
+        }
+      }
+    }
+  }

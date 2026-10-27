@@ -1,0 +1,22 @@
+{
+    "MatchobUsers": [
+        {
+            "PutRequest": {
+                "Item": {
+                    "userId":               { "S": "12345" },
+                    "firstname":            { "S": "Sarah" },
+                    "lastname":             { "S": "Lee" },
+                    "email":                { "S": "sarah@fsu.edu" },
+                    "phoneNumber":          { "S": "+18505551234" },
+                    "age":                  { "N": "20" },
+                    "year":                 { "S": "junior" },
+                    "major":                { "S": "Computer Science" },
+                    "websites":             { "L": [{ "S": "https://github.com/sarahlee" }] },
+                    "defaultResume":        { "NULL": true },
+                    "resumes":              { "M": {} },
+                    "structuredJsonResume": { "NULL": true }
+                }
+            }
+        }
+    ]
+}
