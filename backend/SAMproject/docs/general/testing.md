@@ -6,6 +6,28 @@
 
 All commands run from `backend/SAMproject`. Commands without an OS label are the same everywhere. On Windows, use PowerShell.
 
+## Unit tests
+
+The unit tests mock AWS services, so Docker, a running backend, and AWS credentials aren't required. Use Python 3.13 to match the Lambda runtime. From `backend/SAMproject`, create a virtual environment and install the test dependencies:
+
+**macOS / Linux**
+```bash
+python3.13 -m venv .venv
+.venv/bin/python -m pip install -r tests/requirements.txt
+.venv/bin/python -m pytest tests
+```
+
+**Windows (PowerShell)**
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r tests/requirements.txt
+.\.venv\Scripts\python.exe -m pytest tests
+```
+
+If `.venv` already exists, reuse it and skip the creation command. For later runs, only the pytest command is needed unless dependencies change. These commands use the virtual environment directly, so activation isn't required.
+
+Run `tests` rather than only `tests/unit`: the delete-profile tests live directly in `tests/test_delete_user.py`. `pytest.ini` supplies the source import paths, so no manual `PYTHONPATH` setting or SAM build is needed.
+
 ## How the pieces connect
 
 ```

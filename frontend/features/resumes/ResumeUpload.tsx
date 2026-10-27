@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Button } from '../../components/Button';
 import { uploadResume, type UploadResult } from '../../services/uploadResume';
+import './ResumeUpload.css';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB placeholder: confirm with Backend/AWS
 const MAX_RESUME_MB = MAX_FILE_SIZE / (1024 * 1024);
 
-type UploadState = | { status: 'idle' }| { status: 'invalid'; message: string }| { status: 'uploading'; file: File }| { status: 'success'; file: File }| { status: 'failure'; file: File; message: string };
+type UploadState =
+  | { status: 'idle' }
+  | { status: 'invalid'; message: string }
+  | { status: 'uploading'; file: File }
+  | { status: 'success'; file: File }
+  | { status: 'failure'; file: File; message: string };
 
 type ValidationResult = { valid: true } | { valid: false; message: string };
 
@@ -83,7 +89,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
 
     function onDragOver(event: DragEvent) {
       if (!hasFiles(event)) return;
-      event.preventDefault(); 
+      event.preventDefault();
       if (event.dataTransfer) event.dataTransfer.dropEffect = isUploading ? 'none' : 'copy';
     }
 
@@ -142,31 +148,31 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
         hidden
       />
 
-      <Button onClick={openPicker} disabled={isUploading}>
-        Upload resume
-      </Button>
-
-      <div className={dropzoneClass} aria-busy={isUploading}>
+      <button
+        type="button"
+        className={dropzoneClass}
+        onClick={openPicker}
+        disabled={isUploading}
+        aria-busy={isUploading}
+      >
         {state.status === 'uploading' ? (
-          <div className="resume-upload__uploading" role="status" aria-live="polite">
+          <span className="resume-upload__uploading" role="status" aria-live="polite">
             <span className="resume-upload__spinner" aria-hidden="true" />
-            <p className="resume-upload__title">Uploading {state.file.name}…</p>
-          </div>
+            Uploading {state.file.name}…
+          </span>
         ) : (
           <>
-            <p className="resume-upload__title">
-              {isDragging
-                ? 'Drop to upload your resume'
-                : 'Drag and drop your resume anywhere here, or use the button above.'}
-            </p>
-            <p className="resume-upload__hint">PDF only, up to {MAX_RESUME_MB} MB</p>
-          </>
-        )}
-      </div>
+            <span className="resume-upload__title">
+              {isDragging ? 'Drop to upload' : 'Drag a PDF here, or'}
+            </span>
+          <span className="resume-upload__action">Choose a PDF to upload</span>
+        </>
+      )}
+    </button>
 
       {state.status === 'invalid' && (
         <p className="resume-upload__error" role="alert">
-          {state.message}
+            {state.message}
         </p>
       )}
 
