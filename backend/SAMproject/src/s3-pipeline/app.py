@@ -21,7 +21,7 @@ from resume_helpers import (
     resume_path_names,
     s3_key,
     table,
-    to_resume_object,
+    to_resume_object,  # Builds the public resume fields and a temporary download link.
 )
 
 s3 = boto3.client(
@@ -80,19 +80,49 @@ def create_upload_url():
     return {"resumeId": resume_id, "uploadUrl": upload_url}, 201
 
 
+# GET /resumes runs when the frontend asks to display the user's resumes.
 @app.get("/resumes")
 def list_resumes():
-    # Implementation for fetching resumes
-    # NOT DONE YET! ONLY STARTED BY TOMMY BEFORE TASK WAS ASSIGNED TO NATE (TASK #2 from meeting_notes.md)
-    # aka CloudClub-Fall2027-Matchob/backend/SAMproject/docs/meeting_notes.md
+    """Return the caller's resumes, newest first, with fresh download links."""
+    # Started by Tommy before Task #2 was assigned to Nate; completed for Task #2.
+    # See docs/s3-pipeline/endpoints/list-resumes.md for the endpoint requirements.
+
+    # Identify the caller using their login information (or the local test header).
+    # Keep Tommy's check: requests without a user receive 401 (unauthorized).
     user_id = get_user_id(app.current_event.raw_event)
     if not user_id:
         return {"error": "Unauthorized"}, 401
-    
-    resumes = get_resumes(user_id)
-    if not resumes:
-        return {"error": "No resumes found"}, 404
-    
+
+    # Read only this user's resume details from DynamoDB, not the resume files.
+    # If AWS reports a database error, log the details and send a general error.
+    try:
+        resumes = get_resumes(user_id)
+    except ClientError:
+        logger.exception("dynamodb get_item failed")
+        return {"error": "Internal server error"}, 500
+
+    # None means the profile does not exist: return 404 (not found).
+    # An empty map means the profile exists but has no resumes: return [] below.
+    if resumes is None:
+        return {"error": "Profile not found"}, 404
+
+    # Each entry contains a resume ID and its stored details.
+    # Upload times use a consistent UTC format, so sorting their text works.
+    # reverse=True puts the newest upload first.
+    sorted_resumes = sorted(
+        resumes.items(), key=lambda item: item[1]["uploadedAt"], reverse=True
+    )
+
+    # Build the list the frontend expects. The helper adds a fresh download link
+    # and its expiry time, and leaves the internal s3Key out of the public fields.
+    # If there are no resumes, this loop is skipped and result stays empty.
+    result = []
+    for resume_id, stored in sorted_resumes:
+        result.append(to_resume_object(resume_id, stored))
+
+    # Record the user and number of resumes returned, then send 200 (success).
+    logger.info("resumes listed", extra={"user_id": user_id, "count": len(result)})
+    return result, 200
 
 @app.patch("/resumes/<resume_id>")                              # registers the PATCH endpoint for a specific resume
 def update_resume(resume_id):                                   # defines the function and receives the resume ID from the URL
