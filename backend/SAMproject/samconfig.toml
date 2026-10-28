@@ -17,7 +17,7 @@ capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
 confirm_changeset = true
 resolve_s3 = true
 # Uncomment and fill in from the Bedrock console before deploying (docs/bedrock-pipeline/README.md).
-# parameter_overrides = "PromptArn=arn:aws:bedrock:<region>:<account>:prompt/<id>:<version> GuardrailId=<id> GuardrailVersion=<version>"
+# parameter_overrides = "PromptArn=arn:aws:bedrock:<region>:<account>:prompt/<id>:<version> BedrockModelResourceArns=<model-arn>,<inference-profile-arn-if-used> GuardrailId=<id> GuardrailVersion=<version>"
 
 [default.package.parameters]
 resolve_s3 = true
