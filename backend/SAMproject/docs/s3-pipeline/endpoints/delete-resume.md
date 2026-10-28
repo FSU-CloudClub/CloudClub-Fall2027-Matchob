@@ -6,6 +6,8 @@
 ## What it does
 Removes a resume from the profile, clears `defaultResume` if it pointed at it, and deletes the file from S3. Backs `resumeApi.deleteResume(id)`.
 
+The resume ID must contain 1–128 ASCII letters, digits, underscores or hyphens. Invalid IDs return `400` before storage calls. This accepts UUIDs and existing opaque IDs. No request body is required.
+
 ## How it works
 1. `get_user_id(app.current_event.raw_event)`. `None` → 401.
 2. Remove the entry with `table.update_item` (call 1 below), returning the old item. `ConditionalCheckFailedException` → 404.
@@ -56,8 +58,10 @@ DynamoDB can't do "remove this, and clear that only if it matches" in one expres
 | Call 2 other `ClientError` | (continue, return 200) | | `logger.exception("clear defaultResume failed")`. The resume is gone, so the user's request succeeded |
 | `delete_object` `ClientError` | (continue, return 200) | | `logger.exception("s3 delete_object failed", extra={"s3_key": ...})`. Leaves an orphaned file |
 
+DynamoDB transport failures return JSON `500`. Transport failures during default cleanup or S3 deletion are logged and remain best-effort after metadata removal. Unexpected route exceptions return a generic JSON `500`.
+
 ## Infrastructure
-None. The `DeleteResume` event and `S3CrudPolicy` (which includes `s3:DeleteObject`) are in `templates/s3-template.yaml`.
+The `DeleteResume` event and explicit IAM policy are in `templates/s3-template.yaml`. The shared resume role permits only `GetItem`/`UpdateItem` on the users table and `GetObject`/`PutObject`/`DeleteObject` under the uploads bucket’s `users/*/resumes/*` prefix. Read/upload permissions support the other routes sharing this Lambda.
 
 ## Done when
 ```bash

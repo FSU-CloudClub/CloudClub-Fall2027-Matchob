@@ -1,10 +1,11 @@
 import os
+import re
 
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from aws_lambda_powertools import Logger
-from aws_lambda_powertools.event_handler import APIGatewayRestResolver
+from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response
 from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from matchob_common.auth import get_user_id
@@ -20,11 +21,22 @@ s3 = boto3.client(
 logger = Logger()
 app = APIGatewayRestResolver(serializer=to_json)
 
+@app.exception_handler(Exception)
+def handle_unexpected_error(error):
+    logger.error("unexpected resumes failure", extra={"error_type": type(error).__name__})
+    return Response(status_code=500, content_type="application/json",
+                    body=to_json({"error": "Internal server error"}))
+
+
 @app.delete("/resumes/<resume_id>")
 def delete_resume(resume_id):
     user_id = get_user_id(app.current_event.raw_event)
     if user_id is None:
         return {"error": "Unauthorized"}, 401
+
+    # Accept UUIDs and existing opaque IDs, without whitespace or path separators.
+    if not isinstance(resume_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", resume_id):
+        return {"error": "Invalid resume ID"}, 400
 
     try:
         result = table.update_item(
@@ -38,6 +50,10 @@ def delete_resume(resume_id):
         if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return {"error": "Resume not found"}, 404
         logger.exception("dynamodb update_item failed")
+        return {"error": "Internal server error"}, 500
+
+    except BotoCoreError:
+        logger.error("dynamodb request failed")
         return {"error": "Internal server error"}, 500
 
     old = result["Attributes"]
@@ -54,11 +70,13 @@ def delete_resume(resume_id):
         except ClientError as exc:
             if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
                 logger.exception("clear defaultResume failed")
+        except BotoCoreError:
+            logger.error("clear defaultResume request failed")
 
     try:
         s3.delete_object(Bucket=BUCKET, Key=stored["s3Key"])
-    except ClientError:
-        logger.exception("s3 delete_object failed", extra={"s3_key": stored["s3Key"]})
+    except (ClientError, BotoCoreError):
+        logger.error("s3 delete_object failed")
 
     logger.info("resume deleted", extra={"user_id": user_id, "resume_id": resume_id})
     return {"message": "Resume deleted"}

@@ -73,10 +73,19 @@ Resources:
         Variables:
           POWERTOOLS_SERVICE_NAME: resumes
       Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref UploadBucket
-        - DynamoDBCrudPolicy:
-            TableName: !Ref UsersTableName
+        # Shared by list/download/upload/update/delete resume routes.
+        - Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub "${UploadBucket.Arn}/users/*/resumes/*"
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !Sub "arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}"
       Events:
         ListResumes:
           Type: Api
