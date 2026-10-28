@@ -1,6 +1,6 @@
-from botocore.exceptions import ClientError, ReadTimeoutError
+from botocore.exceptions import ClientError, ReadTimeoutError, ConnectTimeoutError, ConnectionError, ConnectionClosedError
 from aws_lambda_powertools import Logger
-from aws_lambda_powertools.event_handler import APIGatewayRestResolver
+from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response
 from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from matchob_common.auth import get_user_id
@@ -17,6 +17,14 @@ from bedrock_helpers import (
 
 logger = Logger()
 app = APIGatewayRestResolver(serializer=to_json)
+
+
+@app.exception_handler(Exception)
+def handle_unexpected_error(error):
+    # Exception text may contain request data; log only its type.
+    logger.error("unexpected suggestions failure", extra={"error_type": type(error).__name__})
+    return Response(status_code=500, content_type="application/json",
+                    body=to_json({"error": "Internal server error"}))
 
 
 @app.post("/suggestions")
@@ -48,9 +56,13 @@ def create_suggestions():
             return {"error": "AI service timed out"}, status
         logger.exception("bedrock converse failed")
         return {"error": "Internal server error"}, status
-    except ReadTimeoutError:
+    except (ReadTimeoutError, ConnectTimeoutError):
         logger.warning("bedrock timed out")
         return {"error": "AI service timed out"}, 504
+
+    except (ConnectionError, ConnectionClosedError):
+        logger.warning("bedrock connection failed")
+        return {"error": "AI service is unavailable, try again"}, 503
 
     log_context = {"user_id": user_id, "stop_reason": response.get("stopReason")}
     # Blocked replies can be plain text, so check before parsing JSON.

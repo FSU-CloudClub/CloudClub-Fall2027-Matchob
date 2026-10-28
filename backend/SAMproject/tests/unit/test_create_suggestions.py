@@ -7,7 +7,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
-from botocore.exceptions import ClientError, ReadTimeoutError
+from botocore.exceptions import (ClientError, ReadTimeoutError, ConnectTimeoutError,
+                                 EndpointConnectionError, ConnectionClosedError)
 
 
 def fake_response(text, reason="end_turn"):
@@ -113,3 +114,22 @@ def test_service_errors(endpoint, code, status, message):
 def test_read_timeout(endpoint):
     endpoint.call_bedrock.side_effect = ReadTimeoutError(endpoint_url="x")
     assert endpoint.create_suggestions() == ({"error": "AI service timed out"}, 504)
+
+
+@pytest.mark.parametrize("error,status,message", [
+    (ConnectTimeoutError(endpoint_url="https://bedrock.test"), 504, "AI service timed out"),
+    (EndpointConnectionError(endpoint_url="https://bedrock.test"), 503, "AI service is unavailable, try again"),
+    (ConnectionClosedError(endpoint_url="https://bedrock.test"), 503, "AI service is unavailable, try again"),
+    (RuntimeError("private resume text"), 500, "Internal server error"),
+])
+def test_failures_return_json_through_router(endpoint, error, status, message):
+    body = json.dumps(endpoint.app.current_event.json_body)
+    del endpoint.app.current_event
+    endpoint.call_bedrock.side_effect = error
+    result = endpoint.app.resolve({
+        "httpMethod": "POST", "path": "/suggestions", "headers": {},
+        "requestContext": {"stage": "test"}, "body": body,
+    }, None)
+    assert result["statusCode"] == status
+    assert json.loads(result["body"]) == {"error": message}
+    assert "private resume text" not in str(endpoint.logger.mock_calls)
