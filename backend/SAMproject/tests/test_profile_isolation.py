@@ -245,6 +245,24 @@ class TestProfileIsolation(unittest.TestCase):
             Key={"userId": "12345"}
         )
 
+    def test_foreign_user_in_actual_url_is_rejected_without_database_access(self):
+        """P3-1: change the actual URL, not just API Gateway pathParameters."""
+        self.production_mode()
+        self.mock_table.get_item.return_value = {
+            "Item": {"userId": "99999", "name": "PRIVATE_FOREIGN_PROFILE"}
+        }
+        event = self.claims_event("12345")
+        event["path"] = "/profile/99999"
+        event["resource"] = "/profile/{userId}"
+        event["pathParameters"] = {"userId": "99999"}
+
+        result = self.call(event)
+
+        self.assertEqual(result["statusCode"], 404)
+        self.assertNotIn("PRIVATE_FOREIGN_PROFILE", result["body"])
+        self.assertNotIn("99999", result["body"])
+        self.assertEqual(self.mock_table.mock_calls, [])
+
 
 if __name__ == "__main__":
     unittest.main()
