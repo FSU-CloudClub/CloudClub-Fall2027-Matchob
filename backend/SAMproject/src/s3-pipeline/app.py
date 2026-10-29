@@ -16,9 +16,11 @@ from resume_helpers import (
     BUCKET,
     UPLOAD_FIELDS,
     RESUME_FIELDS,
+    URL_EXPIRES_IN,
     get_resumes,
     now_iso,
     presign_upload,
+    presign_download,
     resume_path_names,
     s3_key,
     table,
@@ -142,16 +144,39 @@ def create_upload_url():
 
 @app.get("/resumes")
 def list_resumes():
-    # Implementation for fetching resumes
-    # NOT DONE YET! ONLY STARTED BY TOMMY BEFORE TASK WAS ASSIGNED TO NATE (TASK #2 from meeting_notes.md)
-    # aka CloudClub-Fall2027-Matchob/backend/SAMproject/docs/meeting_notes.md
+    """List only the caller's resumes, newest first, with fresh download URLs."""
     user_id = get_user_id(app.current_event.raw_event)
     if not user_id:
         return {"error": "Unauthorized"}, 401
 
     resumes = get_resumes(user_id)
-    if not resumes:
-        return {"error": "No resumes found"}, 404
+    if resumes is None:
+        return {"error": "Profile not found"}, 404
+
+    ordered = sorted(resumes.items(), key=lambda entry: entry[1]["uploadedAt"], reverse=True)
+    return [to_resume_object(resume_id, stored) for resume_id, stored in ordered]
+
+
+@app.get("/resumes/<resume_id>/download-url")
+def create_download_url(resume_id):
+    """Sign a stored key only after finding the resume in the caller's profile."""
+    user_id = get_user_id(app.current_event.raw_event)
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", resume_id):
+        return {"error": "Invalid resume ID"}, 400
+
+    resumes = get_resumes(user_id)
+    if resumes is None or resume_id not in resumes:
+        # Do not distinguish another user's resume from a nonexistent one.
+        return {"error": "Resume not found"}, 404
+
+    stored = resumes[resume_id]
+    return {
+        "downloadUrl": presign_download(stored["s3Key"], stored["name"]),
+        "expiresIn": URL_EXPIRES_IN,
+    }
 
 
 @app.patch("/resumes/<resume_id>")                              # registers the PATCH endpoint for a specific resume
