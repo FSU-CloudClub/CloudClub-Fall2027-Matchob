@@ -33,7 +33,7 @@ def endpoint(monkeypatch):
 def test_stores_metadata_before_presigning(endpoint):
     def sign(key, content_type):
         endpoint.table.update_item.assert_called_once()
-        assert key.startswith("users/user-123/resumes/")
+        assert key.startswith("quarantine/users/user-123/resumes/")
         assert key.endswith(".pdf")
         assert content_type == "application/pdf"
         return "signed-url"
@@ -51,7 +51,8 @@ def test_stores_metadata_before_presigning(endpoint):
     stored = kwargs["ExpressionAttributeValues"][":resume"]
     assert stored["name"] == "cv.pdf"
     assert stored["tags"] == []
-    assert stored["s3Key"] == f'users/user-123/resumes/{body["resumeId"]}.pdf'
+    assert stored["status"] == "pending"
+    assert stored["s3Key"] == f'quarantine/users/user-123/resumes/{body["resumeId"]}.pdf'
     assert stored["uploadedAt"].endswith("Z")
 
 

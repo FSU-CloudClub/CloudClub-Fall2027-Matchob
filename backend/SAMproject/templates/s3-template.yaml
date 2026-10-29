@@ -20,7 +20,7 @@ Globals:
       Variables:
         POWERTOOLS_LOG_LEVEL: INFO
         USERS_TABLE: !Ref UsersTableName
-        UPLOAD_BUCKET: !Ref UploadBucket
+        UPLOAD_BUCKET: !Ref UploadBucketName
         DYNAMODB_ENDPOINT: ""
         S3_ENDPOINT: ""
         S3_PUBLIC_ENDPOINT: ""
@@ -46,6 +46,20 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireQuarantinedUploads
+            Status: Enabled
+            Prefix: quarantine/
+            ExpirationInDays: 1
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+          - Id: ExpireUncommittedValidationCopies
+            Status: Enabled
+            TagFilters:
+              - Key: validation
+                Value: pending
+            ExpirationInDays: 1
       CorsConfiguration:
         CorsRules:
           - AllowedMethods:
@@ -86,15 +100,20 @@ Resources:
                 - dynamodb:GetItem
                 - dynamodb:UpdateItem
               Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}'
-            # Presigned uploads/downloads need object permissions on the
-            # signing role. DeleteObject supports the declared delete route.
-            - Sid: ManageResumeFiles
+            - Sid: UploadToQuarantine
               Effect: Allow
-              Action:
-                - s3:GetObject
-                - s3:PutObject
-                - s3:DeleteObject
-              Resource: !Sub '${UploadBucket.Arn}/users/*/resumes/*'
+              Action: s3:PutObject
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${UploadBucketName}/quarantine/users/*/resumes/*'
+            - Sid: DownloadValidatedFiles
+              Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${UploadBucketName}/users/*/resumes/*/validated/*'
+            - Sid: DeleteResumeFiles
+              Effect: Allow
+              Action: s3:DeleteObject
+              Resource:
+                - !Sub 'arn:${AWS::Partition}:s3:::${UploadBucketName}/users/*/resumes/*'
+                - !Sub 'arn:${AWS::Partition}:s3:::${UploadBucketName}/quarantine/users/*/resumes/*'
       Events:
         ListResumes:
           Type: Api
@@ -126,6 +145,45 @@ Resources:
             RestApiId: !Ref ResumesApi
             Path: /resumes/{resumeId}/download-url
             Method: get
+
+  UploadValidationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../src/s3-pipeline/
+      Handler: upload_validator.lambda_handler
+      Timeout: 30
+      MemorySize: 512
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}'
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:DeleteObject
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${UploadBucketName}/quarantine/users/*/resumes/*'
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:DeleteObject
+                - s3:PutObjectTagging
+                - s3:DeleteObjectTagging
+              Resource: !Sub 'arn:${AWS::Partition}:s3:::${UploadBucketName}/users/*/resumes/*/validated/*'
+      Events:
+        QuarantineUpload:
+          Type: S3
+          Properties:
+            Bucket: !Ref UploadBucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: prefix
+                    Value: quarantine/
 
 Outputs:
   ApiUrl:

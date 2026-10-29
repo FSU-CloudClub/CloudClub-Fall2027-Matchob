@@ -1,6 +1,7 @@
 """Helpers used only by the resumes Lambda. Design: docs/s3-pipeline/helpers.md."""
 
 import os
+import re
 from datetime import datetime, timezone
 
 import boto3
@@ -9,7 +10,6 @@ from matchob_common.validators import REQUIRED, one_of, str_length
 
 ALLOWED_CONTENT_TYPES = {
     "application/pdf": "pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx",
 }
 URL_EXPIRES_IN = 300
 
@@ -55,7 +55,7 @@ RESUME_FIELDS = {  # only ever used with partial=True
 
 def s3_key(user_id, resume_id, content_type):
     """Return the S3 key for a resume. content_type must already be validated."""
-    return f"users/{user_id}/resumes/{resume_id}.{ALLOWED_CONTENT_TYPES[content_type]}"
+    return f"quarantine/users/{user_id}/resumes/{resume_id}.{ALLOWED_CONTENT_TYPES[content_type]}"
 
 
 def now_iso():
@@ -64,7 +64,7 @@ def now_iso():
 
 
 def presign_upload(key, content_type):
-    """Return a URL that allows one PUT of key with exactly this Content-Type."""
+    """Return a reusable, short-lived PUT URL with exactly this Content-Type."""
     return presign_client.generate_presigned_url(
         "put_object",
         Params={"Bucket": BUCKET, "Key": key, "ContentType": content_type},
@@ -82,6 +82,14 @@ def presign_download(key, file_name):
     )
 
 
+def is_validated(stored):
+    """Fail closed for legacy records and quarantine objects."""
+    return stored.get("status") == "validated" and bool(re.fullmatch(
+        r"users/[^/]+/resumes/[A-Za-z0-9_-]{1,128}/validated/[A-Za-z0-9_-]+\.pdf",
+        stored.get("s3Key", ""),
+    ))
+
+
 def to_resume_object(resume_id, stored):
     """Turn a stored resume into the contract's resume object. Never includes s3Key."""
     return {
@@ -90,8 +98,9 @@ def to_resume_object(resume_id, stored):
         "tags": stored["tags"],
         "contentType": stored["contentType"],
         "uploadedAt": stored["uploadedAt"],
-        "downloadUrl": presign_download(stored["s3Key"], stored["name"]),
-        "expiresIn": URL_EXPIRES_IN,
+        "status": stored.get("status", "unverified"),
+        "downloadUrl": presign_download(stored["s3Key"], stored["name"]) if is_validated(stored) else None,
+        "expiresIn": URL_EXPIRES_IN if is_validated(stored) else 0,
     }
 
 
@@ -99,6 +108,7 @@ def get_resumes(user_id):
     """Return the user's resumes map, or None if they have no profile. ClientError propagates."""
     item = table.get_item(
         Key={"userId": user_id},
+        ConsistentRead=True,
         ProjectionExpression="#resumes",
         ExpressionAttributeNames={"#resumes": "resumes"},
     ).get("Item")

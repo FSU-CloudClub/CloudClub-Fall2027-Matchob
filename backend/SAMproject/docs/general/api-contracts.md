@@ -142,10 +142,11 @@ This is what the resume endpoints return. It's the [stored resume](#profile-obje
 | `tags` | Up to 10, each 1–30 characters. Starts as `[]` |
 | `contentType` | Set from the upload |
 | `uploadedAt` | Set by the backend. ISO 8601 UTC |
-| `downloadUrl` | A temporary link, signed for each response, so files are never public |
-| `expiresIn` | Seconds until `downloadUrl` stops working. Fetch again after that |
+| `status` | `pending`, `validated`, `rejected`, or `unverified` for legacy records |
+| `downloadUrl` | A temporary link for validated files only; otherwise `null` |
+| `expiresIn` | Seconds until `downloadUrl` stops working; `0` when no link is available |
 
-Files must be PDF or DOCX, 5 MB at most. The frontend checks the size, because an S3 upload link can't.
+Files must be unencrypted, parseable PDFs, at most 5 MiB (5 × 1024 × 1024 bytes) and 100 pages. The frontend checks before upload; the backend validates actual bytes after upload in private quarantine. DOCX is not accepted.
 
 ### `GET /resumes`
 
@@ -168,10 +169,12 @@ Generates the presigned **upload** link and adds the resume to the profile.
 | Status | Returns | Why |
 |---|---|---|
 | `201` | `{ "resumeId": "...", "uploadUrl": "https://..." }` | The file goes straight to S3, so large files don't pass through the API |
-| `400` | error | Missing field, or the file type isn't PDF or DOCX |
+| `400` | error | Missing field, or declared type is not `application/pdf` |
 | `404` | error | No profile yet |
 
-Then upload the file: `PUT` the bytes to `uploadUrl` with the same `Content-Type`, and no `Authorization` header. The link expires after 5 minutes.
+Then upload the file: `PUT` the bytes to `uploadUrl` with the same `Content-Type`, and no `Authorization` header. The link expires after 5 minutes and can be reused until expiry. It can only write to quarantine; it cannot overwrite a validated file.
+
+Poll `GET /resumes` after uploading: `pending` means validation is incomplete, `validated` permits download, and `rejected` means the file failed validation and is deleted. Legacy records without a status return `unverified` and must be re-uploaded. Never treat S3 PUT success as validation success. The current frontend upload service is a mock; this polling is required when connecting it to the API.
 
 ```ts
 const { uploadUrl } = await resumeApi.getUploadUrl(file.name, file.type);
@@ -209,6 +212,7 @@ Generates a fresh presigned **download** link for one resume. Use it when a link
 | Status | Returns | Why |
 |---|---|---|
 | `200` | `{ "downloadUrl": "https://...", "expiresIn": 300 }` | `expiresIn` is in seconds |
+| `409` | `{ "error": "Resume has not passed validation", "status": "..." }` | Pending, rejected, or unverified resume |
 | `404` | error | Not found, or not this user's |
 
 ---

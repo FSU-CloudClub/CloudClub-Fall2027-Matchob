@@ -1,3 +1,4 @@
 # this is where dependencies go
 boto3
 aws-lambda-powertools>=3.35,<4
+pypdf==6.21.4

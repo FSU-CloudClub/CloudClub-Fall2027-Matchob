@@ -79,7 +79,7 @@ resumes:                                           users/abc/resumes/9a1d....doc
 defaultResume: "3f6c..."
 ```
 
-- **Key format:** `users/<userId>/resumes/<resumeId>.<pdf|docx>`. The `userId` prefix keeps users' files apart and makes "delete everything for a user" one prefix.
+- **Key format:** `quarantine/users/<userId>/resumes/<resumeId>.pdf` for uploads; `users/<userId>/resumes/<resumeId>/validated/<uuid>.pdf` after validation. The `userId` prefix keeps users' files apart and makes "delete everything for a user" one prefix.
 - **Never store URLs.** Store `s3Key` and sign a fresh URL for each response.
 - **Write to DynamoDB with nested paths** (`resumes.<id>`, `resumes.<id>.name`) and a `ConditionExpression`, so each write touches one resume and fails cleanly if it doesn't exist.
 - **Ownership comes for free.** Every read and write uses the caller's own `userId` as the key, so another user's `resumeId` is simply "not found" (404).
@@ -95,8 +95,8 @@ defaultResume: "3f6c..."
 
 ## Known gaps (from the contract's open decisions)
 
-- **No upload confirmation.** The resume is added to the profile when the upload URL is issued. If the browser's upload then fails, the resume is listed but its `downloadUrl` returns S3's `NoSuchKey` error.
-- **Size isn't enforced by S3.** A presigned `PUT` can't limit size, so only the frontend checks 5 MB.
+- **Abandoned uploads.** Pending records have no download URL. If the upload never completes or validation exhausts retries, metadata remains pending; the user can delete it or upload again.
+- **Validation follows storage.** Invalid bytes briefly enter private quarantine. The validator enforces PDF contents and 5 MiB before promotion; see [upload-validation.md](upload-validation.md).
 - **`DELETE /profile` leaves files behind.** See [delete-profile.md](../dynamodb-pipeline/endpoints/delete-profile.md#gap-resume-files-are-left-in-s3).
 
 ---

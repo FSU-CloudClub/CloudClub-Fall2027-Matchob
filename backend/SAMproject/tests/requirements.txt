@@ -1,3 +1,4 @@
 pytest
 boto3
 aws-lambda-powertools
+pypdf==6.21.4

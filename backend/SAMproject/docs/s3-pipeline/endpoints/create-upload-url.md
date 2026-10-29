@@ -6,13 +6,19 @@
 ## What it does
 Adds a new resume to the user's profile and returns a presigned URL the browser uploads the file to, straight to S3.
 
+The signed MIME header is still only a caller claim. Actual content is checked by
+`upload_validator.lambda_handler`, triggered by S3 object creation under
+`quarantine/`. See [upload-validation.md](../upload-validation.md) for validation,
+cleanup, race handling, and local testing. Downloads are blocked until validation
+succeeds; a successful PUT alone is not sufficient.
+
 ## How it works
 1. `get_user_id(app.current_event.raw_event)`. `None` → 401.
 2. `read_json_body(app.current_event)`. Error → 400.
 3. `validate_fields(body, UPLOAD_FIELDS, partial=False)`. Error → 400.
 4. `resume_id = str(uuid.uuid4())`. The backend picks the ID, never the client.
 5. `key = s3_key(user_id, resume_id, fields["contentType"])`.
-6. Build the stored resume: `{"s3Key": key, "name": fields["fileName"], "tags": [], "contentType": fields["contentType"], "uploadedAt": now_iso()}`.
+6. Build the stored resume: `{"s3Key": key, "status": "pending", "name": fields["fileName"], "tags": [], "contentType": fields["contentType"], "uploadedAt": now_iso()}`.
 7. Add it to the profile with `table.update_item` (below). `ConditionalCheckFailedException` → 404.
 8. `upload_url = presign_upload(key, fields["contentType"])`.
 9. Log `resume upload url created` with `user_id` and `resume_id`, and return `{"resumeId": resume_id, "uploadUrl": upload_url}, 201`.
@@ -53,7 +59,7 @@ Write to DynamoDB **before** presigning. If the write fails, the client never ge
 | Any other `ClientError` | 500 | `Internal server error` | `logger.exception("dynamodb update_item failed")` |
 
 ## Infrastructure
-- The `CreateUploadUrl` event, `S3CrudPolicy` and `DynamoDBCrudPolicy` already exist in `templates/s3-template.yaml`.
+- `templates/s3-template.yaml` defines the API and S3 validator, scoped IAM permissions, and quarantine cleanup rules.
 - Needs `S3_PUBLIC_ENDPOINT` (already set up, see setup task 2 in [README.md](../README.md#setup-tasks-do-once-before-the-endpoints)).
 
 ## Done when
@@ -64,7 +70,7 @@ R=$(curl -s -X POST localhost:3001/resumes/upload-url "${H[@]}" -d '{"fileName":
 echo "$R"                                                              # 201 {"resumeId": ..., "uploadUrl": "http://localhost:9090/..."}
 URL=$(echo "$R" | python3 -c 'import json,sys; print(json.load(sys.stdin)["uploadUrl"])')
 curl -i -X PUT "$URL" -H "Content-Type: application/pdf" --data-binary @some.pdf   # 200 from s3mock
-aws s3 ls s3://matchob-uploads/users/u1/resumes/ --endpoint-url http://localhost:9090   # the file is there
+aws s3 ls s3://matchob-uploads/quarantine/users/u1/resumes/ --endpoint-url http://localhost:9090   # quarantined; locally invoke the validator separately
 
 curl -i -X POST localhost:3001/resumes/upload-url "${H[@]}" -d '{"fileName":"x.png","contentType":"image/png"}'      # 400
 curl -i -X POST localhost:3001/resumes/upload-url -H "X-Local-User: nobody" -H "Content-Type: application/json" -d '{"fileName":"a.pdf","contentType":"application/pdf"}'   # 404

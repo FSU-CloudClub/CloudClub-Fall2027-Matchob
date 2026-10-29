@@ -10,7 +10,7 @@ Everything below is implemented. This is the reference for names, parameters, re
 
 | Name | Value | Used by |
 |---|---|---|
-| `ALLOWED_CONTENT_TYPES` | `{"application/pdf": "pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx"}` | Upload validation and the file extension in `s3_key` |
+| `ALLOWED_CONTENT_TYPES` | `{"application/pdf": "pdf"}` | Upload validation and the file extension in `s3_key` |
 | `URL_EXPIRES_IN` | `300` | Every presigned URL, and the `expiresIn` field in responses |
 
 ## Validators
@@ -56,7 +56,7 @@ Why `s3v4` and `virtual`: real S3 expects Signature Version 4 and bucket-in-host
 ## Functions
 
 ### `s3_key(user_id, resume_id, content_type) → str`
-Returns `users/{user_id}/resumes/{resume_id}.{ALLOWED_CONTENT_TYPES[content_type]}`. Call it only with a validated `content_type`.
+Returns `quarantine/users/{user_id}/resumes/{resume_id}.{ALLOWED_CONTENT_TYPES[content_type]}`. Call it only with a validated `content_type`.
 
 ### `now_iso() → str`
 The current UTC time as `2026-10-22T14:03:00Z`: `datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")`. Used for `uploadedAt`. This format sorts correctly as a string, which `list_resumes` relies on.
@@ -66,8 +66,8 @@ The current UTC time as `2026-10-22T14:03:00Z`: `datetime.now(timezone.utc).strf
 
 | Param | Why |
 |---|---|
-| `"put_object"` | The URL allows exactly one upload operation |
-| `ContentType` | Signed into the URL, so the browser must send the **same** `Content-Type` header. Stops someone uploading a different file type with a PDF link |
+| `"put_object"` | Allows PUT to the quarantine key; reusable until expiry |
+| `ContentType` | Signed into the URL, so the browser must send the **same** `Content-Type` header. This checks the caller's declared type only; non-PDF bytes can still be uploaded with `application/pdf` |
 | `ExpiresIn` | Seconds the URL works |
 
 ### `presign_download(key, file_name) → str`
@@ -85,15 +85,16 @@ Turns a stored resume (from the profile's `resumes` map) into the contract's [re
   "tags": stored["tags"],
   "contentType": stored["contentType"],
   "uploadedAt": stored["uploadedAt"],
-  "downloadUrl": presign_download(stored["s3Key"], stored["name"]),
-  "expiresIn": URL_EXPIRES_IN,
+  "status": stored.get("status", "unverified"),
+  "downloadUrl": presign_download(stored["s3Key"], stored["name"]) if is_validated(stored) else None,
+  "expiresIn": URL_EXPIRES_IN if is_validated(stored) else 0,
 }
 ```
 
-Never include `s3Key`. Every endpoint that returns a resume uses this function, so the shape stays consistent.
+`is_validated(stored)` requires validated status and a promoted key; legacy records fail closed. Never include `s3Key`. Every endpoint that returns a resume uses this function, so the shape stays consistent.
 
 ### `get_resumes(user_id) → dict | None`
-Reads only the `resumes` map: `table.get_item(Key={"userId": user_id}, ProjectionExpression="#resumes", ExpressionAttributeNames={"#resumes": "resumes"})`.
+Reads only the `resumes` map: `table.get_item(Key={"userId": user_id}, ConsistentRead=True, ProjectionExpression="#resumes", ExpressionAttributeNames={"#resumes": "resumes"})`.
 - No `Item` in the response → `None` (no profile → the caller returns 404).
 - Otherwise → `item.get("resumes", {})`.
 

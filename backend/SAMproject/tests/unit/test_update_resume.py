@@ -44,7 +44,8 @@ class UpdateResumeTests(unittest.TestCase):
         self.signer = self.clients.return_value.generate_presigned_url
         self.signer.return_value = "https://example.test/signed-download"
         self.stored = {
-            "s3Key": "users/user-123/resumes/resume-456.pdf",
+            "s3Key": "users/user-123/resumes/resume-456/validated/file.pdf",
+            "status": "validated",
             "name": "Original.pdf", "tags": ["original"],
             "contentType": "application/pdf", "uploadedAt": "2026-10-22T14:03:00Z",
         }

@@ -17,6 +17,7 @@ from resume_helpers import (
     UPLOAD_FIELDS,
     RESUME_FIELDS,
     get_resumes,
+    is_validated,
     now_iso,
     presign_upload,
     resume_path_names,
@@ -99,7 +100,11 @@ def delete_resume(resume_id):
 # templates/s3-template.yaml, so until a function exists here they return 404.
 @app.post("/resumes/upload-url")
 def create_upload_url():
-    """Store resume metadata on the caller's profile, then return a signed upload URL."""
+    """Create pending metadata and a quarantine upload URL.
+
+    The S3 validator checks actual bytes asynchronously. No download URL is
+    issued until validation promotes those bytes to a separate, immutable key.
+    """
     user_id = get_user_id(app.current_event.raw_event)
     if not user_id:
         return {"error": "Unauthorized"}, 401
@@ -116,6 +121,7 @@ def create_upload_url():
     key = s3_key(user_id, resume_id, fields["contentType"])
     stored = {
         "s3Key": key,
+        "status": "pending",
         "name": fields["fileName"],
         "tags": [],
         "contentType": fields["contentType"],
@@ -142,16 +148,28 @@ def create_upload_url():
 
 @app.get("/resumes")
 def list_resumes():
-    # Implementation for fetching resumes
-    # NOT DONE YET! ONLY STARTED BY TOMMY BEFORE TASK WAS ASSIGNED TO NATE (TASK #2 from meeting_notes.md)
-    # aka CloudClub-Fall2027-Matchob/backend/SAMproject/docs/meeting_notes.md
     user_id = get_user_id(app.current_event.raw_event)
     if not user_id:
         return {"error": "Unauthorized"}, 401
-
     resumes = get_resumes(user_id)
-    if not resumes:
-        return {"error": "No resumes found"}, 404
+    if resumes is None:
+        return {"error": "Profile not found"}, 404
+    ordered = sorted(resumes.items(), key=lambda item: item[1]["uploadedAt"], reverse=True)
+    return [to_resume_object(resume_id, stored) for resume_id, stored in ordered]
+
+
+@app.get("/resumes/<resume_id>/download-url")
+def create_download_url(resume_id):
+    user_id = get_user_id(app.current_event.raw_event)
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+    stored = (get_resumes(user_id) or {}).get(resume_id)
+    if stored is None:
+        return {"error": "Resume not found"}, 404
+    if not is_validated(stored):
+        return {"error": "Resume has not passed validation", "status": stored.get("status", "unverified")}, 409
+    resume = to_resume_object(resume_id, stored)
+    return {"downloadUrl": resume["downloadUrl"], "expiresIn": resume["expiresIn"]}
 
 
 @app.patch("/resumes/<resume_id>")                              # registers the PATCH endpoint for a specific resume
