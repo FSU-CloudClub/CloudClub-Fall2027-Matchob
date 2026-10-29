@@ -12,12 +12,13 @@ a fake API Gateway event and a fake DynamoDB table, so neither the API
 nor Docker needs to be running.
 """
 
+import json
 import os
 import sys
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 # Locate the Lambda source directory
 LAMBDA_DIR = (
@@ -169,6 +170,31 @@ class TestProfileIsolation(unittest.TestCase):
         self.mock_table.get_item.assert_not_called()
 
     # Rules from auth.md
+
+    def test_sequential_cognito_users_read_their_own_profiles(self):
+        self.production_mode()
+        profiles = {
+            "12345": SARAH["Item"],
+            "99999": {"userId": "99999", "name": "Alex", "education": "Other University"},
+        }
+        # Return data for the requested key, so a wrong-user lookup cannot
+        # accidentally receive the expected profile from a fixed mock response.
+        self.mock_table.get_item.side_effect = lambda *, Key: {
+            "Item": profiles[Key["userId"]]
+        }
+
+        # Reuse the same Lambda module across requests to catch cached identities.
+        for user_id in ("12345", "99999", "12345"):
+            with self.subTest(user_id=user_id):
+                result = self.call(self.claims_event(user_id))
+                self.assertEqual(result["statusCode"], 200)
+                self.assertEqual(json.loads(result["body"]), profiles[user_id])
+
+        self.assertEqual(self.mock_table.get_item.call_args_list, [
+            call(Key={"userId": "12345"}),
+            call(Key={"userId": "99999"}),
+            call(Key={"userId": "12345"}),
+        ])
 
     def test_header_ignored_when_not_running_locally(self):
         # In production AWS_SAM_LOCAL is never set, so the header must
