@@ -36,6 +36,12 @@ s3 = boto3.client(
 logger = Logger()
 app = APIGatewayRestResolver(serializer=to_json)
 
+@app.not_found
+def handle_unknown_route(error):
+    # Keep unmatched paths out of the generic 500 handler; never echo the path.
+    return Response(status_code=404, content_type="application/json",
+                    body=to_json({"error": "Not found"}))
+
 @app.exception_handler(Exception)
 def handle_unexpected_error(error):
     logger.error("unexpected resumes failure", extra={"error_type": type(error).__name__})
