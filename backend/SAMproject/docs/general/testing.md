@@ -180,4 +180,14 @@ Check terminal 1 (the `sam local` output) first. The handler prints `DYNAMODB_EN
 
 ---
 
+## Pending privacy verification after dev deployment — P9-2
+
+**P9-2 remains Partial. Do not mark it complete based on the automated backend tests.** After deploying to dev/test AWS and connecting the extension, complete this check before release. It depends on working resume list/download routes and extension integration.
+
+- Run upload → list → rename → preview/download → suggestions → delete with a fake resume containing unique name, email, phone, resume-text, and job-text markers.
+- Search the extension's DevTools consoles, all relevant Lambda CloudWatch logs, and configured API/storage logs for each marker, including failure paths.
+- Confirm expected operation logs exist and no markers appear. Record the deployed revision, run time window, log sources searched, and results in the P9-2 checklist entry. Missing steps or unavailable logs leave the case Partial.
+
+See the [P9-2 test procedure](privacy-log-testing.md) and [privacy checklist](privacy-safe-fetch-checklist.md).
+
 New to a term? See the [glossary](glossary.md).
