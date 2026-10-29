@@ -35,13 +35,21 @@ The API is ready when you see `Running on http://127.0.0.1:3001`. Press **Ctrl+C
 
 ### What `dev.py` does
 
-1. Checks that `docker` and `sam` are installed and that Docker is running.
-2. Creates `.env` and `env.json` from the `.example` files if they don't exist.
+1. Creates `.env` and `env.json` from the `.example` files if they don't exist. Checks `env.json` against `env.example.json` without changing existing values.
+2. Checks that `docker` and `sam` are installed and that Docker is running.
 3. Restarts DynamoDB + S3 with Compose and waits for the seed data to load.
 4. Runs `sam build`. If Python 3.13 isn't installed, it runs `sam build --use-container` instead.
 5. Runs `sam local start-api --port 3001 --env-vars env.json --docker-network matchob-local`.
 
 Every run rebuilds, so code changes are picked up when you restart the script.
+
+If `env.example.json` gains settings, startup lists the section and name of each
+key missing from `env.json`. Copy those settings into your existing file, keeping
+your custom values. Missing optional settings (including Bedrock settings) only
+warn. Missing or blank `DYNAMODB_ENDPOINT`, `S3_ENDPOINT`, `S3_PUBLIC_ENDPOINT`, or
+`UPLOAD_BUCKET` stops startup before Docker runs, to avoid falling back to AWS
+configuration. Invalid JSON also stops startup. These checks apply to `dev.py`;
+running `sam local` directly bypasses them.
 
 ## Manual steps
 
