@@ -66,6 +66,14 @@ def test_available_backend_success_flow(monkeypatch, capsys, caplog):
     assert renamed["statusCode"] == 200
     assert json.loads(renamed["body"])["downloadUrl"] == signed_url
 
+    resumes.table.get_item.return_value = {"Item": {"resumes": {resume_id: stored}}}
+    listed = invoke(resumes, "GET", "/resumes", None)
+    assert listed["statusCode"] == 200
+    assert json.loads(listed["body"])[0]["name"] == stored["name"]
+    downloaded = invoke(resumes, "GET", f"/resumes/{resume_id}/download-url", None)
+    assert downloaded["statusCode"] == 200
+    assert json.loads(downloaded["body"])["downloadUrl"] == signed_url
+
     monkeypatch.setattr(suggestions, "call_bedrock", MagicMock(return_value={
         "stopReason": "end_turn", "output": {"message": {"content": [
             {"text": json.dumps({"suggestions": [MARKERS[3]]})}]}}}))
