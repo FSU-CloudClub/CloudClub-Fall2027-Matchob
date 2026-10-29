@@ -1,4 +1,4 @@
-"""P3-4: caller-keyed storage and actual signing arguments through the router.
+"""P3-4/P3-5: caller ownership, guessed keys, and path-manipulation attempts.
 
 AWS is mocked; these do not test S3 enforcement of the generated URLs.
 """
@@ -59,12 +59,13 @@ def endpoint(monkeypatch):
     return SimpleNamespace(module=module, table=table, signer=signer, profiles=profiles)
 
 
-def invoke(endpoint, path="/resumes", user="b", method="GET", body=None):
+def invoke(endpoint, path="/resumes", user="b", method="GET", body=None, query=None):
     return endpoint.module.lambda_handler({
         "httpMethod": method, "path": path,
         # All client-supplied ownership hints must be ignored.
         "headers": {"X-Local-User": "a"},
-        "queryStringParameters": {"userId": "a", "s3Key": "users/a/resumes/a-only.pdf"},
+        "queryStringParameters": query if query is not None else {
+            "userId": "a", "s3Key": "users/a/resumes/a-only.pdf"},
         "body": json.dumps(body if body is not None else {"userId": "a", "s3Key": "users/a/resumes/a-only.pdf"}),
         "requestContext": {"authorizer": {"claims": {"sub": user} if user else {}}},
     }, SimpleNamespace(function_name="test", memory_limit_in_mb=128,
@@ -168,3 +169,76 @@ def test_patch_same_id_only_updates_and_signs_own_resume(endpoint):
     assert json.loads(response["body"])["name"] == "Updated"
     assert signed_keys(endpoint) == ["users/b/resumes/shared-id.pdf"]
     assert endpoint.profiles["a"] == before
+
+
+@pytest.mark.parametrize("resume_id", ["resume-100", "resume-102", "resume-999"])
+def test_neighboring_or_made_up_ids_return_no_data(endpoint, resume_id):
+    # One neighbor really belongs to A; another does not exist. Both look identical to B.
+    endpoint.profiles["a"]["resumes"]["resume-100"] = stored("a", "resume-100")
+    endpoint.profiles["b"]["resumes"]["resume-101"] = stored("b", "resume-101")
+    before = deepcopy(endpoint.profiles)
+    response = invoke(endpoint, f"/resumes/{resume_id}/download-url")
+    assert response["statusCode"] == 404
+    assert json.loads(response["body"]) == {"error": "Resume not found"}
+    assert endpoint.table.get_item.call_args.kwargs["Key"] == {"userId": "b"}
+    endpoint.signer.assert_not_called()
+    assert endpoint.profiles == before
+
+
+@pytest.mark.parametrize("path", [
+    "/resumes/../a-only/download-url",
+    "/resumes/%2e%2e%2fa-only/download-url",
+    "/resumes/%252e%252e%252fa-only/download-url",
+    "/resumes/..\\a-only/download-url",
+    "/resumes/%2Fa-only/download-url",
+    "/resumes/a-only%2Fdownload-url/download-url",
+    "/resumes/a-only%00/download-url",
+    "/resumes//download-url",
+    "/resumes/users/a/resumes/a-only.pdf/download-url",
+    "/resumes/users%2Fa%2Fresumes%2Fa-only.pdf/download-url",
+    "/resumes/a-only.pdf/download-url",
+    "/resumes/https://example.test/private.pdf/download-url",
+    "/users/a/resumes/a-only/download-url",
+])
+def test_path_manipulation_and_raw_file_keys_never_reach_storage(endpoint, path):
+    before = deepcopy(endpoint.profiles)
+    response = invoke(endpoint, path)
+    # The router rejects extra path segments; matched routes reject invalid opaque IDs.
+    assert response["statusCode"] in (400, 404)
+    payload = json.loads(response["body"])
+    if response["statusCode"] == 400:
+        assert payload == {"error": "Invalid resume ID"}
+    else:
+        assert payload == {"error": "Not found"}
+    assert endpoint.table.mock_calls == []
+    endpoint.signer.assert_not_called()
+    assert endpoint.profiles == before
+
+
+@pytest.mark.parametrize("path", ["/resumes", "/resumes/shared-id/download-url"])
+@pytest.mark.parametrize("target", [
+    {"userId": "a", "s3Key": "users/a/resumes/a-only.pdf"},
+    {"userId": "neighbor-999", "key": "users/neighbor-999/resumes/made-up.pdf"},
+    {"userId": "a", "downloadUrl": "https://example.test/private?signature=foreign"},
+])
+def test_supplied_keys_and_urls_cannot_redirect_reads_or_signing(endpoint, path, target):
+    response = invoke(endpoint, path, query=target, body=target)
+    assert response["statusCode"] == 200
+    assert endpoint.table.get_item.call_args.kwargs["Key"] == {"userId": "b"}
+    assert signed_keys(endpoint) == ["users/b/resumes/shared-id.pdf"]
+    assert "PRIVATE_a" not in response["body"]
+    for value in target.values():
+        if len(value) > 1:
+            assert value not in response["body"]
+
+
+@pytest.mark.parametrize("field", ["userId", "s3Key", "downloadUrl"])
+def test_patch_rejects_attempts_to_inject_foreign_ownership(endpoint, field):
+    before = deepcopy(endpoint.profiles)
+    response = invoke(endpoint, "/resumes/shared-id", method="PATCH", body={
+        "name": "Attempt", field: "users/a/resumes/a-only.pdf"})
+    assert response["statusCode"] == 400
+    assert json.loads(response["body"]) == {"error": f"Unknown fields: {field}"}
+    assert endpoint.table.mock_calls == []
+    endpoint.signer.assert_not_called()
+    assert endpoint.profiles == before
