@@ -14,8 +14,10 @@ from matchob_common.validators import validate_fields
 from resume_helpers import (
     BUCKET,
     UPLOAD_FIELDS,
+    URL_EXPIRES_IN,
     get_resumes,
     now_iso,
+    presign_download, 
     presign_upload,
     resume_path_names,
     s3_key,
@@ -90,7 +92,31 @@ def list_resumes():
     resumes = get_resumes(user_id)
     if not resumes:
         return {"error": "No resumes found"}, 404
-    
+
+
+@app.get("/resumes/<resume_id>/download-url")
+def create_download_url(resume_id):
+    """Return a fresh download link for one of the caller's resumes."""
+    user_id = get_user_id(app.current_event.raw_event)
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+
+    try:
+        resumes = get_resumes(user_id)
+    except ClientError:
+        logger.exception("dynamodb get_item failed")
+        return {"error": "Internal server error"}, 500
+
+    if resumes is None:
+        return {"error": "Profile not found"}, 404
+
+    stored = resumes.get(resume_id)
+    if stored is None:
+        return {"error": "Resume not found"}, 404
+
+    url = presign_download(stored["s3Key"], stored["name"])
+    logger.info("resume download url created", extra={"user_id": user_id, "resume_id": resume_id})
+    return {"downloadUrl": url, "expiresIn": URL_EXPIRES_IN}, 200
 
 
 @logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
