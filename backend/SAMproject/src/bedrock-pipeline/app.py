@@ -54,7 +54,7 @@ def create_suggestions():
         if status == 504:
             logger.warning("bedrock timed out")
             return {"error": "AI service timed out"}, status
-        logger.exception("bedrock converse failed")
+        logger.error("bedrock converse failed")
         return {"error": "Internal server error"}, status
     except (ReadTimeoutError, ConnectTimeoutError):
         logger.warning("bedrock timed out")
@@ -79,6 +79,7 @@ def create_suggestions():
     return reply
 
 
-@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
+# Never log request bodies, even if POWERTOOLS_LOGGER_LOG_EVENT is enabled.
+@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST, log_event=False)
 def lambda_handler(event: dict, context: LambdaContext) -> dict:
     return app.resolve(event, context)

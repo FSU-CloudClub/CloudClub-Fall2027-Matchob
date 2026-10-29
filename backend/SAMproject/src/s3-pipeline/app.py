@@ -62,7 +62,7 @@ def delete_resume(resume_id):
     except ClientError as exc:
         if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return {"error": "Resume not found"}, 404
-        logger.exception("dynamodb update_item failed")
+        logger.error("dynamodb update_item failed")
         return {"error": "Internal server error"}, 500
 
     except BotoCoreError:
@@ -82,7 +82,7 @@ def delete_resume(resume_id):
             )
         except ClientError as exc:
             if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
-                logger.exception("clear defaultResume failed")
+                logger.error("clear defaultResume failed")
         except BotoCoreError:
             logger.error("clear defaultResume request failed")
 
@@ -132,7 +132,7 @@ def create_upload_url():
     except ClientError as error:
         if error.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return {"error": "Profile not found"}, 404
-        logger.exception("dynamodb update_item failed")
+        logger.error("dynamodb update_item failed")
         return {"error": "Internal server error"}, 500
 
     upload_url = presign_upload(key, fields["contentType"])
@@ -210,7 +210,7 @@ def update_resume(resume_id):                                   # defines the fu
         if error.response["Error"]["Code"] == "ConditionalCheckFailedException":  # checks whether the resume was missing
             return {"error": "Resume not found"}, 404                  # returns HTTP 404 without creating a new resume
 
-        logger.exception("dynamodb update_item failed")               # logs unexpected DynamoDB errors for investigation
+        logger.error("dynamodb update_item failed")               # logs unexpected DynamoDB errors for investigation
         return {"error": "Internal server error"}, 500                # returns HTTP 500 for an unexpected database failure
 
     updated_item = response["Attributes"]                              # retrieves the updated DynamoDB user record
@@ -228,6 +228,7 @@ def update_resume(resume_id):                                   # defines the fu
     )
     return resume, 200                                                 # returns the updated resume with HTTP 200
 
-@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
+# Never log request bodies, even if POWERTOOLS_LOGGER_LOG_EVENT is enabled.
+@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST, log_event=False)
 def lambda_handler(event: dict, context: LambdaContext) -> dict:
     return app.resolve(event, context)

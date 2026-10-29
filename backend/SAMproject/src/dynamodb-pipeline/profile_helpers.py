@@ -35,5 +35,5 @@ def profile_exists(table, user_id):
     try:
         return "Item" in table.get_item(Key={"userId": user_id}, ProjectionExpression="userId")
     except ClientError:
-        logger.exception("dynamodb get_item failed")
+        logger.error("dynamodb get_item failed")
         return False
