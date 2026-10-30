@@ -1,7 +1,5 @@
 """Helpers used only by the profile Lambda."""
 
-from botocore.exceptions import ClientError
-from aws_lambda_powertools import Logger
 from matchob_common.validators import (
     REQUIRED,
     email,
@@ -11,8 +9,6 @@ from matchob_common.validators import (
     optional_str,
     url_list,
 )
-
-logger = Logger(child=True)
 
 # The fields a client may send: name -> (default, validator).
 # REQUIRED fields must be sent on POST; the others fall back to their default.
@@ -31,9 +27,5 @@ PROFILE_FIELDS = {
 
 
 def profile_exists(table, user_id):
-    """Return True if the user has a profile. Used to explain a failed update condition."""
-    try:
-        return "Item" in table.get_item(Key={"userId": user_id}, ProjectionExpression="userId")
-    except ClientError:
-        logger.error("dynamodb get_item failed")
-        return False
+    """Check existence; let AWS failures propagate rather than imply a missing item."""
+    return "Item" in table.get_item(Key={"userId": user_id}, ProjectionExpression="userId")

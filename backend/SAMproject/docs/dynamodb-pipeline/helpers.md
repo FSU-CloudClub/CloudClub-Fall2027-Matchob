@@ -35,7 +35,7 @@ Calls `table.get_item(Key={"userId": user_id}, ProjectionExpression="userId")` a
 
 **When to use it:** only after a conditional write fails with more than one possible cause. In `PUT /profile`, a failed condition means either "no profile" (404) or "`defaultResume` isn't one of your resumes" (400), and this read tells them apart. Don't call it before a write to check existence, because the profile could be deleted between the read and the write. Put the check in the write's `ConditionExpression` instead.
 
-On a `ClientError` it logs the exception and returns `False`, so the caller reports 404.
+AWS errors propagate to the router's AWS exception handler, which logs a fixed message without exception details and returns generic JSON 500. A failed read must not imply that the profile is missing.
 
 ---
 
