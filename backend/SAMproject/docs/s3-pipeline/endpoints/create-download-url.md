@@ -8,7 +8,7 @@ Returns a fresh download link for one resume, for when the link from `GET /resum
 
 ## How it works
 1. `get_user_id(app.current_event.raw_event)`. `None` → 401.
-2. `resumes = get_resumes(user_id)`. `None` → 404 `Profile not found`.
+2. Validate the resume ID; invalid opaque IDs → 400. Read `get_resumes(user_id)`; a missing profile or resume → 404 `Resume not found`.
 3. `stored = resumes.get(resume_id)`. `None` → 404 `Resume not found`.
 4. `url = presign_download(stored["s3Key"], stored["name"])`.
 5. Log `resume download url created` with `user_id` and `resume_id`, and return `{"downloadUrl": url, "expiresIn": URL_EXPIRES_IN}`. It's sent with status 200.
@@ -30,7 +30,7 @@ Returns a fresh download link for one resume, for when the link from `GET /resum
 | Condition | Status | `error` message | Log |
 |---|---|---|---|
 | No user | 401 | `Unauthorized` | none |
-| No profile | 404 | `Profile not found` | none |
+| No profile | 404 | `Resume not found` | none |
 | `resume_id` not in the user's `resumes` (including another user's ID) | 404 | `Resume not found` | none |
 | Service/transport/signing failure or malformed stored metadata | 500 | `Internal server error` | Fixed `resume download failed` message; no exception text or traceback |
 
@@ -86,3 +86,5 @@ This verifies container execution, routing, local storage integration, and actua
 local file retrieval. It does not prove deployed Cognito/IAM enforcement, S3 public
 access blocking, or rejection after URL expiration. Those checks remain pending a
 dev AWS deployment. No AWS resources were deployed or changed during this test.
+
+Merge-resolution verification (October 29, 2026): removed the duplicate download route and combined ID validation with safe error handling. Missing profiles and missing/foreign resumes all return the same generic 404. Updated the test expectation and made duplicate-route warnings fail endpoint tests. Full merged suite: 261 passed, 34 subtests passed, with no warnings. Prior local SAM results above predate this merge-resolution fix.

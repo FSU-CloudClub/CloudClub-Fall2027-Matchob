@@ -13,6 +13,9 @@ from aws_lambda_powertools import Logger
 from botocore.exceptions import ClientError, EndpointConnectionError, NoCredentialsError, ReadTimeoutError
 
 
+# Treat duplicate route registration as a failure, not a warning hidden by a passing build.
+pytestmark = pytest.mark.filterwarnings("error:A route like this was already registered")
+
 PRIVATE = "PRIVATE_RESUME_name_email_phone"
 
 
@@ -72,7 +75,7 @@ def test_owner_gets_fresh_url_for_stored_key(endpoint):
 @pytest.mark.parametrize("user,resume_id,message", [
     ("b", "r1", "Resume not found"),
     ("a", "nonexistent", "Resume not found"),
-    ("missing", "r1", "Profile not found"),
+    ("missing", "r1", "Resume not found"),
 ])
 def test_missing_or_foreign_resume_never_signs(endpoint, user, resume_id, message):
     result = invoke(endpoint, user, resume_id)
