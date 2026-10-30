@@ -1,9 +1,19 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: AI service - Bedrock Lambda
+Description: Suggestions service - API and Bedrock Lambda
 
 Parameters:
-  UsersTableName:
+  UserPoolArn:
+    Type: String
+  # IDs of the prompt and guardrail made in the Bedrock console. Set in samconfig.toml.
+  PromptArn:
+    Type: String
+  BedrockModelResourceArns:
+    Type: CommaDelimitedList
+    Description: Exact model and inference profile ARNs required by the prompt.
+  GuardrailId:
+    Type: String
+  GuardrailVersion:
     Type: String
 
 Globals:
@@ -11,13 +21,14 @@ Globals:
     Layers:
       - !Ref SharedLayer
     Runtime: python3.13
-    Timeout: 30
+    # Inside API Gateway's 29 s limit, above the Bedrock client's 25 s read_timeout.
+    Timeout: 28
     Environment:
       Variables:
         POWERTOOLS_LOG_LEVEL: INFO
-        USERS_TABLE: !Ref UsersTableName
-        BEDROCK_MODEL_ID: ""
-        DYNAMODB_ENDPOINT: ""
+        PROMPT_ARN: !Ref PromptArn
+        GUARDRAIL_ID: !Ref GuardrailId
+        GUARDRAIL_VERSION: !Ref GuardrailVersion
 
 Resources:
   SharedLayer:
@@ -29,8 +40,16 @@ Resources:
     Metadata:
       BuildMethod: python3.13
 
-  # No API yet: add an AWS::Serverless::Api and Events here once the AI endpoints
-  # are in docs/general/api-contracts.md. An API with no routes fails to deploy.
+  BedrockApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: dev
+      Auth:
+        DefaultAuthorizer: CognitoAuthorizer
+        Authorizers:
+          CognitoAuthorizer:
+            UserPoolArn: !Ref UserPoolArn
+
   BedrockFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -40,10 +59,24 @@ Resources:
         Variables:
           POWERTOOLS_SERVICE_NAME: bedrock
       Policies:
-        - DynamoDBReadPolicy:
-            TableName: !Ref UsersTableName
         - Statement:
             - Effect: Allow
-              Action:
-                - bedrock:InvokeModel
-              Resource: "*"
+              Action: bedrock:RenderPrompt
+              Resource: !Ref PromptArn
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Ref BedrockModelResourceArns
+            - Effect: Allow
+              Action: bedrock:ApplyGuardrail
+              Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${GuardrailId}"
+      Events:
+        CreateSuggestions:
+          Type: Api
+          Properties:
+            RestApiId: !Ref BedrockApi
+            Path: /suggestions
+            Method: post
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${BedrockApi}.execute-api.${AWS::Region}.amazonaws.com/dev"

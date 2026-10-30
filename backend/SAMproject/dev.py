@@ -10,6 +10,7 @@ If it fails, the API and containers are left running so you can debug.
 """
 
 import argparse
+import json
 import os
 import shutil
 import socket
@@ -25,6 +26,11 @@ NETWORK = "matchob-local"
 API_PORT = 3001
 TEST_USER = "12345"  # seeded in docker/seed/users.json
 TEST_URL = f"http://127.0.0.1:{API_PORT}/profile"
+# Missing endpoint overrides fall back to AWS; a missing bucket can select the
+# deployed template's bucket instead of the local one. Bedrock remains optional.
+LOCAL_REQUIRED_KEYS = {
+    "DYNAMODB_ENDPOINT", "S3_ENDPOINT", "S3_PUBLIC_ENDPOINT", "UPLOAD_BUCKET",
+}
 
 def fail(msg):
     print(f"\n[dev] ERROR: {msg}")
@@ -107,6 +113,50 @@ def copy_if_missing(example, target):
     print(f"[dev] created {target} from {example}")
 
 
+def check_env_config():
+    """Report example drift without rewriting developers' local configuration."""
+    def read_config(name):
+        try:
+            config = json.loads((ROOT / name).read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            fail(f"Can't read {name} as JSON. Fix the file using env.example.json as a reference.")
+        if not isinstance(config, dict) or any(
+            not isinstance(values, dict) for values in config.values()
+        ):
+            fail(f"{name} must contain JSON objects for each section (for example, Parameters).")
+        return config
+
+    example = read_config("env.example.json")
+    current = read_config("env.json")
+    missing = []
+    required = []
+    for section, values in example.items():
+        for key in values:
+            if key not in current.get(section, {}):
+                path = f"{section}.{key}"
+                missing.append(path)
+                if key in LOCAL_REQUIRED_KEYS:
+                    required.append(path)
+
+    # An empty override has the same AWS fallback as a missing one. Check extra
+    # function-specific sections too, since they can override Parameters.
+    for section, values in current.items():
+        for key in LOCAL_REQUIRED_KEYS & values.keys():
+            if not isinstance(values[key], str) or not values[key].strip():
+                required.append(f"{section}.{key}")
+
+    if missing:
+        print("[dev] WARNING: env.json is missing keys from env.example.json:")
+        for path in sorted(missing):
+            print(f"[dev]   {path}")
+    if missing or required:
+        print("[dev] Copy the corresponding settings from env.example.json into env.json, "
+              "keeping your existing custom values. No existing values were changed.")
+    if required:
+        fail("Local settings are missing or empty: " + ", ".join(sorted(required)) +
+             ". Startup stopped to avoid falling back to AWS configuration.")
+
+
 def wait_for_api(api, timeout=120):
     """Wait until sam local start-api accepts connections. False if it exits or times out."""
     deadline = time.time() + timeout
@@ -150,16 +200,17 @@ def main():
     parser.add_argument("--keep", action="store_true", help="don't stop containers on exit")
     args = parser.parse_args()
 
-    # 1. Check tools are installed and Docker is running
+    # 1. Check configuration before touching Docker or starting services.
+    copy_if_missing("env.example.json", "env.json")
+    check_env_config()
+    copy_if_missing(".env.example", ".env")
+
+    # 2. Check tools are installed and Docker is running
     docker = require("docker", "Install Docker Desktop.")
     sam = require("sam", "Install the AWS SAM CLI.")
     if subprocess.run([docker, "info"], capture_output=True).returncode != 0:
         fail("Docker is installed but not running. Start Docker Desktop.")
     set_docker_host(docker)
-
-    # 2. Create env files from the examples if they don't exist
-    copy_if_missing(".env.example", ".env")
-    copy_if_missing("env.example.json", "env.json")
 
     if port_in_use(API_PORT):
         fail(f"Port {API_PORT} is already in use. Stop the other `dev.py`/`sam local` "
@@ -224,4 +275,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
