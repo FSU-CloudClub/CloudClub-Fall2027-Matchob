@@ -103,22 +103,25 @@ def create_download_url(resume_id):
 
     try:
         resumes = get_resumes(user_id)
-    except ClientError:
-        logger.exception("dynamodb get_item failed")
+
+        if resumes is None:
+            return {"error": "Profile not found"}, 404
+
+        stored = resumes.get(resume_id)
+        if stored is None:
+            return {"error": "Resume not found"}, 404
+
+        url = presign_download(stored["s3Key"], stored["name"])
+    except Exception:
+        # Includes SDK service/transport/signing failures and invalid stored data.
+        # Exception messages can contain private data; never log their contents.
+        logger.error("resume download failed")
         return {"error": "Internal server error"}, 500
 
-    if resumes is None:
-        return {"error": "Profile not found"}, 404
-
-    stored = resumes.get(resume_id)
-    if stored is None:
-        return {"error": "Resume not found"}, 404
-
-    url = presign_download(stored["s3Key"], stored["name"])
     logger.info("resume download url created", extra={"user_id": user_id, "resume_id": resume_id})
     return {"downloadUrl": url, "expiresIn": URL_EXPIRES_IN}, 200
 
 
-@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
+@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST, log_event=False)
 def lambda_handler(event: dict, context: LambdaContext) -> dict:
     return app.resolve(event, context)
