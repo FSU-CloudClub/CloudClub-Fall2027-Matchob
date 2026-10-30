@@ -165,7 +165,7 @@ def list_resumes():
 
 @app.get("/resumes/<resume_id>/download-url")
 def create_download_url(resume_id):
-    """Sign a stored key only after finding the resume in the caller's profile."""
+    """Return a fresh download link for one of the caller's resumes."""
     user_id = get_user_id(app.current_event.raw_event)
     if not user_id:
         return {"error": "Unauthorized"}, 401
@@ -173,16 +173,23 @@ def create_download_url(resume_id):
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", resume_id):
         return {"error": "Invalid resume ID"}, 400
 
-    resumes = get_resumes(user_id)
-    if resumes is None or resume_id not in resumes:
-        # Do not distinguish another user's resume from a nonexistent one.
-        return {"error": "Resume not found"}, 404
+    try:
+        resumes = get_resumes(user_id)
 
-    stored = resumes[resume_id]
-    return {
-        "downloadUrl": presign_download(stored["s3Key"], stored["name"]),
-        "expiresIn": URL_EXPIRES_IN,
-    }
+        if resumes is None or resume_id not in resumes:
+            # Keep missing profiles, missing resumes, and foreign resumes indistinguishable.
+            return {"error": "Resume not found"}, 404
+
+        stored = resumes[resume_id]
+        url = presign_download(stored["s3Key"], stored["name"])
+    except Exception:
+        # Includes SDK service/transport/signing failures and invalid stored data.
+        # Exception messages can contain private data; never log their contents.
+        logger.error("resume download failed")
+        return {"error": "Internal server error"}, 500
+
+    logger.info("resume download url created", extra={"user_id": user_id, "resume_id": resume_id})
+    return {"downloadUrl": url, "expiresIn": URL_EXPIRES_IN}, 200
 
 
 @app.patch("/resumes/<resume_id>")                              # registers the PATCH endpoint for a specific resume
