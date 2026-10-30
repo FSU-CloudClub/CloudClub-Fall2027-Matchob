@@ -1,9 +1,9 @@
 import os
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from aws_lambda_powertools import Logger
-from aws_lambda_powertools.event_handler import APIGatewayRestResolver
+from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response
 from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from matchob_common.auth import get_user_id
@@ -18,6 +18,16 @@ BUCKET = os.environ["UPLOAD_BUCKET"]
 
 logger = Logger()
 app = APIGatewayRestResolver(serializer=to_json)
+
+
+@app.exception_handler([BotoCoreError, ClientError])
+def handle_aws_failure(error):
+    """Handle transport errors and failed follow-up reads without private details."""
+    logger.error("profile AWS operation failed")
+    return Response(
+        status_code=500, content_type="application/json",
+        body=to_json({"error": "Internal server error"}),
+    )
 
 
 @app.get("/profile")
@@ -180,7 +190,7 @@ def delete_user():
     for resume in item.get("resumes", {}).values():
         try:
             s3.delete_object(Bucket=BUCKET, Key=resume["s3Key"])
-        except ClientError:
+        except (ClientError, BotoCoreError):
             logger.error("s3 resume deletion failed", extra={"user_id": user_id})
             cleanup_failed = True
     if cleanup_failed:

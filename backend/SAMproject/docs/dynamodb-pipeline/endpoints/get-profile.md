@@ -32,10 +32,12 @@ Returns the signed-in user's full profile, including their `resumes` map.
 |---|---|---|---|
 | No user | 401 | `Unauthorized` | none |
 | No `Item` in the response | 404 | `Profile not found` | none |
-| `ClientError` from `get_item` | 500 | `Internal server error` | `logger.exception("dynamodb get_item failed")` |
+| `ClientError` from `get_item` | 500 | `Internal server error` | `logger.error("dynamodb get_item failed")`, no exception details |
+
+AWS transport failures return generic JSON 500 through the shared AWS exception handler, with a fixed log message.
 
 ## Infrastructure
-None. The `GetProfile` event and `DynamoDBCrudPolicy` are in `templates/dynamodb-template.yaml`.
+None. The `GetProfile` event and table-scoped read permission are in `templates/dynamodb-template.yaml`.
 
 ## Done when
 ```bash
@@ -47,6 +49,9 @@ The 200 body has `"age": 20`, a number, not `"20"`.
 ## Gotchas
 - Returning `response` instead of `response["Item"]` sends DynamoDB's metadata to the client.
 - Without `serializer=to_json` on the resolver, numbers come back as strings.
+
+## Unit tests
+`tests/unit/test_profile_endpoints.py` covers returning only the item (not DynamoDB metadata), numeric `Decimal` serialization, 401 without database access, missing-profile 404 and generic database-error 500. `tests/test_profile_isolation.py` covers caller ownership and local-header rules. See the [pipeline test command and results](../README.md#unit-tests-task-7); AWS clients are mocked.
 
 ---
 
