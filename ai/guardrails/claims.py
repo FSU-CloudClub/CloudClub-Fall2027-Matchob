@@ -179,6 +179,7 @@ OUTCOME_FORMS = {
     "decrease": "decrease decreases decreased decreasing",
     "double": "double doubles doubled doubling",
     "triple": "triple triples tripled tripling",
+    "quadruple": "quadruple quadruples quadrupled quadrupling",
     "accelerate": "accelerate accelerates accelerated accelerating",
     "expand": "expand expands expanded expanding",
     "generate": "generate generates generated generating",
@@ -223,10 +224,51 @@ def find_time_units(text: str) -> set[str]:
     return {TIME[p] for p in pieces if p in TIME} | {AFTER_NUMBER[s] for s in short}
 
 
+# "Doubled as team lead" and "doubled up on shifts" name a second role or more effort, not growth.
+NOT_GROWTH = re.compile(r"\bdoubl(?:ed|ing) (?:as|up)\b", re.IGNORECASE)
+
+
 def find_outcomes(text: str) -> set[str]:
     """Which result verbs appear, by name ("cutting" -> "cut"). The last part of a hyphenated
     word counts ("cost-saving"), the first does not ("double-checked")."""
-    return {OUTCOME[w.split("-")[-1]] for w in _words(text) if w.split("-")[-1] in OUTCOME}
+    words = _words(NOT_GROWTH.sub(" ", text))
+    return {OUTCOME[w.split("-")[-1]] for w in words if w.split("-")[-1] in OUTCOME}
+
+
+# Growth words are amounts too: "doubled" says the after number is at least twice the before.
+# Bare "double" and "twice" are left out: "double major" and "presented twice" claim no growth.
+MULTIPLIER_FORMS = {
+    "doubled": "doubled doubling",
+    "tripled": "tripled tripling",
+    "quadrupled": "quadrupled quadrupling",
+    "halved": "halved halving",
+}
+MULTIPLIER = {form: name for name, forms in MULTIPLIER_FORMS.items() for form in forms.split()}
+FACTORS = {"doubled": Decimal(2), "tripled": Decimal(3), "quadrupled": Decimal(4), "halved": Decimal("0.5")}
+CUT_IN_HALF = re.compile(r"\bcut(?:s|ting)?(?: [\w'-]+){0,4} in half\b")
+# clean() has already turned "from 400 to 700" into "from 400-700". Words can sit between
+# when the unit comes first ("from 30 minutes to 14") or the numbers are words ("from ten to twenty").
+CHANGE = re.compile(rf"\bfrom ({AMOUNT})(?:-|(?: [a-z]+){{0,2}} to )({AMOUNT})(?![\w+#]|[.,]\d)")
+
+
+def find_multipliers(text: str) -> set[str]:
+    """Which growth words appear, by name ("doubling" -> "doubled", "cut wait times in half" ->
+    "halved"). A hyphenated word stays whole, so "double-checked" claims nothing."""
+    found = {MULTIPLIER[w] for w in _words(NOT_GROWTH.sub(" ", text)) if w in MULTIPLIER}
+    if CUT_IN_HALF.search(clean(text).casefold()):
+        found.add("halved")
+    return found
+
+
+def find_changes(text: str) -> list[tuple[Decimal, Decimal]]:
+    """Every "from A to B" as numbers: "from 850 to 1,400 subscribers" -> (850, 1400).
+    Only numbers written together count, so "6 months" elsewhere in the line is never used."""
+    pairs = []
+    for match in CHANGE.finditer(clean(text).casefold()):
+        before, after = (Decimal(re.sub(r"[^\d.]", "", _tidy(amount))) for amount in match.groups())
+        if before > 0:
+            pairs.append((before, after))
+    return pairs
 
 
 def find_help_words(text: str) -> list[str]:

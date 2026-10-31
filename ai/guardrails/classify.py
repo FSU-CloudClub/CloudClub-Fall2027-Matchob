@@ -1,9 +1,11 @@
 """Label a rewritten resume bullet as supported, needs_confirmation or unsupported."""
 
 import re
+from decimal import ROUND_HALF_UP, Decimal
 
-from ai.guardrails.claims import (find_help_words, find_numbers, find_outcomes, find_scope_words,
-                                  find_time_units, find_titles, find_tools)
+from ai.guardrails.claims import (FACTORS, find_changes, find_help_words, find_multipliers,
+                                  find_numbers, find_outcomes, find_scope_words, find_time_units,
+                                  find_titles, find_tools)
 from ai.guardrails.span_check import span_exists
 from ai.guardrails.text import clean
 from ai.matching.normalize import normalize
@@ -13,6 +15,29 @@ STOPWORDS = {
     "that", "which", "who", "while", "into", "over", "per", "is", "was", "were", "be", "been", "it",
     "its", "this", "these", "their", "my", "our", "up",
 }
+
+
+CLOSE = Decimal("0.95")  # 1.9x for "doubled" is close but short; 1.75x is not close
+
+
+def _share(before: Decimal, after: Decimal, factor: Decimal) -> Decimal:
+    """How much of the claimed change the numbers show; 1 or more means the word fits."""
+    ratio = after / before
+    if factor >= 1:
+        return ratio / factor
+    return factor / ratio if ratio else Decimal(1)
+
+
+def _is_change_percent(number: str, changes: list[tuple[Decimal, Decimal]]) -> bool:
+    """A worked-out percent is backed when it is the real change, exact to the digits it shows:
+    "65%" for 850 to 1,400 (64.7%), "53%" for a cut from 30 to 14. Close is not enough."""
+    match = re.fullmatch(r"(\d+(?:\.\d+)?)%", number)
+    if not match:
+        return False
+    claim = Decimal(match[1])
+    step = Decimal(1).scaleb(claim.as_tuple().exponent)  # "65" rounds to 1, "64.7" to 0.1
+    return any(abs((after - before) / before * 100).quantize(step, ROUND_HALF_UP) == claim
+               for before, after in changes)
 
 
 def _stems(text: str) -> set[str]:
@@ -45,14 +70,29 @@ def classify(suggestion: str, resume: str, evidence: str = "") -> dict:
             unsupported.append("Nothing in your resume backs this")
 
     # Numbers and tools: only in the user's own note -> ask them; nowhere -> invented.
+    # A percent worked out from the resume's own "from A to B" counts as in the resume.
+    # ponytail: any "from A to B" in the source counts, so on a whole resume another bullet's
+    # numbers can back this one; check_recommendation's narrowed source avoids that.
     resume_numbers, note_numbers = find_numbers(resume), find_numbers(evidence)
+    changes = find_changes(resume)
     for number in find_numbers(suggestion):
-        if number in resume_numbers:
+        if number in resume_numbers or _is_change_percent(number, changes):
             continue
         if number in note_numbers:
             confirm.append(f"{number} is only in your note")
         else:
             unsupported.append(f"{number} is not in your resume")
+
+    # Growth words are number claims too: "doubled" needs the resume to say it, or to show it
+    # with "from A to B". Within 5% of the claim needs confirmation; further short is invented.
+    for word in sorted(find_multipliers(suggestion) - find_multipliers(resume)):
+        best = max((_share(before, after, FACTORS[word]) for before, after in changes), default=0)
+        if best >= 1:
+            continue
+        if best >= CLOSE:
+            confirm.append(f"Your resume's numbers come close to '{word}' but fall short")
+        else:
+            unsupported.append(f"Your resume doesn't show '{word}'")
 
     suggestion_tools = find_tools(suggestion)
     new_tools = suggestion_tools - find_tools(resume)
