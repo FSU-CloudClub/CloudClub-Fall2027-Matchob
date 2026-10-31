@@ -20,11 +20,13 @@ def read_json(text):
 
 
 def call_model(system, user):
+    """
+    Call the AI model with the given system and user messages.
+    The other steps take model = call_model(...) and tests pass a fake model object.
+    """
+    
     import os
     import boto3  # inside the function, not at the top, so tests never need boto3
-    """
-    The other steps take model = call_model(...) and then model.reply(...) and tests pass a fake model object.
-    """
 
     client = boto3.client("bedrock-runtime")
     model_id = os.environ["BEDROCK_MODEL_ID"]
