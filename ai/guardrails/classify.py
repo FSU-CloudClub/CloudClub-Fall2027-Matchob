@@ -40,6 +40,42 @@ def _is_change_percent(number: str, changes: list[tuple[Decimal, Decimal]]) -> b
                for before, after in changes)
 
 
+# A line that only lists what you know. A tool named only on such lines is weak evidence, so a
+# rewrite that claims you used it needs confirmation. "Project: Built..." and "Tech stack:" are
+# not labels: they describe real work.
+SKILLS_LABEL = re.compile(
+    r"\s*(?:[-*•–▪]\s*)?(?:(?:technical )?skills|software|tools|programming languages|technologies"
+    r"|frameworks|coursework|certifications?)\s*:", re.IGNORECASE)
+
+
+SKILLS_HEADING = re.compile(r"(?:technical |computer )?skills(?: ?(?:&|and) [a-z ]+)?:?", re.IGNORECASE)
+HEADINGS = {"experience", "work experience", "projects", "education", "leadership", "activities",
+            "involvement", "volunteer", "research", "awards", "honors", "certifications",
+            "publications", "interests"}
+
+
+def _is_heading(line: str) -> bool:
+    """A section name ("Experience", "PROJECTS:") or an all-caps line of 2+ words with no comma.
+    A lone all-caps skill like "SQL" is not a heading, so it can't end the Skills section early."""
+    text = line.strip().rstrip(":").strip()
+    return text.casefold() in HEADINGS or (text.isupper() and len(text.split()) > 1 and "," not in text)
+
+
+def _used_text(resume: str) -> str:
+    """The resume without its Skills lines: everything from a Skills heading to the next heading,
+    and labelled lines anywhere ("Software: Power BI"). A tool in what's left shows it was used."""
+    # ponytail: check_recommendation's narrowed source has no Skills heading, so there only
+    # labelled lines are recognized; pass the whole resume's Skills lines in if that matters.
+    used, in_skills = [], False
+    for line in resume.splitlines():
+        if SKILLS_HEADING.fullmatch(line.strip()) or _is_heading(line):
+            in_skills = bool(SKILLS_HEADING.fullmatch(line.strip()))
+            used.append(line)  # a heading names no tools
+        elif not in_skills and not SKILLS_LABEL.match(line):
+            used.append(line)
+    return "\n".join(used)
+
+
 def _stems(text: str) -> set[str]:
     """First five letters of each content word: not a stopword, has a letter, not a pure number."""
     words = re.findall(r"\w+", normalize(text))
@@ -58,6 +94,7 @@ def classify(suggestion: str, resume: str, evidence: str = "") -> dict:
     does not produce the frontend's evidence-span contract. The caller decides what the source
     is; see check_recommendation for the safe way to build it.
     """
+    used = clean(_used_text(resume))  # before clean() joins the lines into one
     suggestion, resume, evidence = clean(suggestion), clean(resume), clean(evidence)
     if not re.search(r"\w", suggestion):
         return {"status": "unsupported", "reasons": ["There is no suggestion to check"]}
@@ -103,6 +140,13 @@ def classify(suggestion: str, resume: str, evidence: str = "") -> dict:
         else:
             unsupported.append(f"{tool} is not in your resume")
 
+    # A tool listed only under Skills is known, not shown used. Reordering the Skills line itself
+    # ("Skills: Excel, SQL") claims no use, so it isn't flagged.
+    listing = bool(SKILLS_LABEL.match(suggestion))
+    if not listing:
+        for tool in sorted(suggestion_tools - new_tools - find_tools(used)):
+            confirm.append(f"{tool} is only in your Skills list")
+
     for word in sorted(find_scope_words(suggestion) - find_scope_words(resume)):
         confirm.append(f"Your resume doesn't say '{word}'")
 
@@ -139,6 +183,7 @@ def classify(suggestion: str, resume: str, evidence: str = "") -> dict:
     # Unknown capitalized and mixed-case names need confirmation. A sentence's first
     # ordinary capitalized word is skipped; tools, titles and acronyms are checked there too.
     resume_words = set(re.findall(r"\w+", normalize(resume) + " " + resume.casefold()))
+    used_words = set(re.findall(r"\w+", normalize(used) + " " + used.casefold()))
     normalized_suggestion = normalize(suggestion)
     first_word = re.search(r"[A-Za-z][A-Za-z0-9+#]*", suggestion)
     for match in re.finditer(r"\b(?:[A-Z][A-Za-z0-9+#]*|[a-z]+[A-Z][A-Za-z0-9+#]*)", suggestion):
@@ -152,8 +197,13 @@ def classify(suggestion: str, resume: str, evidence: str = "") -> dict:
                             or (word.casefold() == "go" and "golang" in suggestion_tools)
                             or not re.search(r"(?<!\w)" + re.escape(word.casefold()) + r"(?!\w)",
                                              normalized_suggestion))
-        if not already_reported and any(piece not in resume_words for piece in pieces):
+        if already_reported:
+            continue
+        if any(piece not in resume_words for piece in pieces):
             confirm.append(f"'{word}' isn't in your resume")
+        elif not listing and any(piece not in used_words for piece in pieces):
+            # Names the tool list doesn't know (C, Postman, GA4) get the same Skills check.
+            confirm.append(f"'{word}' is only in your Skills list")
 
     # ponytail: word overlap stands in for the planned meaning-level check; replace it when that lands
     wanted = _stems(suggestion)

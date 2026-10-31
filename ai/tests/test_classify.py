@@ -214,6 +214,42 @@ class TestClassify(unittest.TestCase):
             with self.subTest(suggestion=suggestion, source=source):
                 self.assertEqual(classify(suggestion, source)["status"], expected)
 
+    def test_tool_only_in_skills_needs_confirmation(self):
+        for suggestion, source, expected in (
+            ("Familiar with C through Computer Architecture coursework",
+             "Skills: Python, C, Java\nCoursework: Computer Architecture, Databases", "needs_confirmation"),
+            ("Experienced testing APIs with Postman", "Skills: Postman, Python\nBuilt REST APIs for FixtureLab",
+             "needs_confirmation"),
+            ("Built Power BI dashboards for monthly flux analysis",
+             "Software: Power BI, Excel\nProduced monthly flux analysis reports", "needs_confirmation"),
+            ("Tracked website conversions from social campaigns in GA4",
+             "Tools: GA4\nManaged social campaigns for a local shop", "needs_confirmation"),
+            ("Tracked weekly inventory in Excel",
+             "EXPERIENCE\n- Tracked weekly inventory\nSKILLS\nExcel, Python", "needs_confirmation"),
+            # The whole section counts, whatever the heading looks like, until the next heading.
+            ("Built dashboards in Tableau", "EXPERIENCE\n- Built dashboards\nSKILLS\nLanguages: Python, SQL\n"
+             "Visualization: Tableau, Power BI", "needs_confirmation"),
+            ("Built dashboards in Tableau", "EXPERIENCE\n- Built dashboards\nTECHNICAL SKILLS\nTableau, SQL",
+             "needs_confirmation"),
+            ("Built dashboards in Tableau", "EXPERIENCE\n- Built dashboards\nSKILLS:\nTableau, SQL",
+             "needs_confirmation"),
+            ("Built dashboards in Tableau", "Experience\n- Built dashboards\nSkills\nTableau, SQL",
+             "needs_confirmation"),
+            ("Built dashboards in Tableau", "EXPERIENCE\n- Built dashboards\nSKILLS\nSQL\nTableau",
+             "needs_confirmation"),
+            ("Built dashboards in Tableau for the food pantry",
+             "SKILLS\nTools: Tableau\nEXPERIENCE\n- Built dashboards in Tableau for the food pantry", "supported"),
+            # Used in a real bullet, or a label that describes real work, is still supported.
+            ("Tracked weekly inventory in Excel", "Skills: Excel\n- Tracked weekly inventory in Excel", "supported"),
+            ("Built a booking tool with Python", "Project: Built a booking tool with Python", "supported"),
+            ("Built a booking app in React", "Built a booking app\nTech stack: React, Node", "supported"),
+            ("Skills: Excel, SQL, Python", "Skills: Python, SQL, Excel", "supported"),
+        ):
+            with self.subTest(suggestion=suggestion, source=source):
+                self.assertEqual(classify(suggestion, source)["status"], expected)
+        self.assertIn("power bi is only in your Skills list",
+                      classify("Built Power BI dashboards", "Software: Power BI\nBuilt dashboards")["reasons"])
+
     def test_mostly_new_wording_needs_confirmation(self):
         result = classify("Organized a charity gala for local families.",
                           "Built a Python script to email weekly reminders for a campus club.")
