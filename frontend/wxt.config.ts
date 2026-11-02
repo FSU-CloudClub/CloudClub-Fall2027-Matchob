@@ -5,5 +5,7 @@ export default defineConfig({
   manifest: {
     name: 'Matchob',
     description: 'AI-powered resume tailoring',
+    permissions: ['activeTab', 'scripting']
+    
   },
 });
