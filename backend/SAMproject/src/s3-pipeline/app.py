@@ -160,11 +160,11 @@ def list_resumes():
     user_id = get_user_id(app.current_event.raw_event)
     if not user_id:
         return {"error": "Unauthorized"}, 401
-      
+
     try:
         resumes = get_resumes(user_id)
     except ClientError:
-        logger.exception("dynamodb get_item failed")
+        logger.error("dynamodb get_item failed")
         return {"error": "Internal server error"}, 500
 
     if resumes is None:

@@ -46,7 +46,7 @@ def invoke(module, method, path, body):
 
 @pytest.mark.parametrize("scenario", [
     "profile_read", "profile_update", "profile_delete", "profile_s3_cleanup",
-    "resume_upload", "resume_update", "resume_delete", "suggestions",
+    "resume_list", "resume_upload", "resume_update", "resume_delete", "suggestions",
 ])
 def test_service_failure_logs_exclude_private_details(monkeypatch, scenario):
     folder = ("dynamodb-pipeline" if scenario.startswith("profile") else
@@ -67,6 +67,9 @@ def test_service_failure_logs_exclude_private_details(monkeypatch, scenario):
         module.table.delete_item.return_value = {"Attributes": {
             "resumes": {"r1": {"s3Key": MARKER}}}}
         module.s3.delete_object.side_effect = error
+    elif scenario == "resume_list":
+        path = "/resumes"
+        module.table.get_item.side_effect = error
     elif scenario.startswith("resume"):
         method, path, body = {
             "resume_upload": ("POST", "/resumes/upload-url", {"fileName": MARKER, "contentType": "application/pdf"}),
