@@ -6,7 +6,6 @@ from matchob_common.validators import (
     int_between,
     non_empty_str,
     one_of,
-    optional_str,
     url_list,
 )
 
@@ -22,10 +21,4 @@ PROFILE_FIELDS = {
     "year": (REQUIRED, one_of("freshman", "sophomore", "junior", "senior", "graduate")),
     "major": (REQUIRED, non_empty_str),
     "websites": ([], url_list),
-    "defaultResume": (None, optional_str),
 }
-
-
-def profile_exists(table, user_id):
-    """Check existence; let AWS failures propagate rather than imply a missing item."""
-    return "Item" in table.get_item(Key={"userId": user_id}, ProjectionExpression="userId")

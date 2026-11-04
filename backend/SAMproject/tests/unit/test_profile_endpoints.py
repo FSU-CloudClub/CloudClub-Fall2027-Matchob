@@ -56,7 +56,7 @@ def aws_error(code="InternalServerError"):
 
 def test_get_returns_only_item_with_numeric_age(endpoint):
     invoke, table, _ = endpoint
-    item = {"userId": "user-123", "age": Decimal("20"), "resumes": {}, "defaultResume": None}
+    item = {"userId": "user-123", "age": Decimal("20"), "resumes": {}}
     table.get_item.return_value = {"Item": item, "ResponseMetadata": {"RequestId": "internal"}}
     status, body = invoke("GET")
     assert status == 200
@@ -113,7 +113,7 @@ def test_put_partial_update_returns_full_profile_and_targets_caller(endpoint):
     ('{"email":"invalid"}', "email must be a valid email address"),
     ('{"age":true}', "age must be a whole number from 13 to 120"),
     ('{"age":121}', "age must be a whole number from 13 to 120"),
-    ('{"defaultResume":" "}', "defaultResume must be a non-empty string"),
+    ('{"defaultResume":" "}', "Unknown fields: defaultResume"),
 ])
 def test_put_invalid_body_never_writes(endpoint, body, message):
     invoke, table, _ = endpoint
@@ -121,33 +121,15 @@ def test_put_invalid_body_never_writes(endpoint, body, message):
     assert table.mock_calls == []
 
 
-@pytest.mark.parametrize("resume_id", [None, "resume-1"])
-def test_put_sets_or_clears_default_resume(endpoint, resume_id):
+@pytest.mark.parametrize("value", [None, "resume-1"])
+def test_put_rejects_removed_default_resume(endpoint, value):
     invoke, table, _ = endpoint
-    table.update_item.return_value = {"Attributes": {"userId": "user-123", "defaultResume": resume_id}}
-    assert invoke("PUT", json.dumps({"defaultResume": resume_id}))[0] == 200
-    args = table.update_item.call_args.kwargs
-    assert args["ExpressionAttributeValues"] == {":defaultResume": resume_id}
-    if resume_id is None:
-        assert args["ConditionExpression"] == "attribute_exists(userId)"
-        assert "#defaultResumeId" not in args["ExpressionAttributeNames"]
-    else:
-        assert args["ConditionExpression"] == "attribute_exists(userId) AND attribute_exists(#resumes.#defaultResumeId)"
-        assert args["ExpressionAttributeNames"]["#defaultResumeId"] == resume_id
-    table.get_item.assert_not_called()
+    assert invoke("PUT", json.dumps({"defaultResume": value})) == (
+        400, {"error": "Unknown fields: defaultResume"})
+    assert table.mock_calls == []
 
 
-@pytest.mark.parametrize("profile_exists", [True, False])
-def test_put_failed_resume_condition_distinguishes_missing_profile(endpoint, profile_exists):
-    invoke, table, _ = endpoint
-    table.update_item.side_effect = aws_error("ConditionalCheckFailedException")
-    table.get_item.return_value = {"Item": {"userId": "user-123"}} if profile_exists else {}
-    expected = (400, {"error": "defaultResume must be one of your resumes"}) if profile_exists else (404, {"error": "Profile not found"})
-    assert invoke("PUT", '{"defaultResume":"foreign-resume"}') == expected
-    table.get_item.assert_called_once_with(Key={"userId": "user-123"}, ProjectionExpression="userId")
-
-
-def test_put_missing_profile_without_default_does_not_read_again(endpoint):
+def test_put_missing_profile_does_not_read_again(endpoint):
     invoke, table, _ = endpoint
     table.update_item.side_effect = aws_error("ConditionalCheckFailedException")
     assert invoke("PUT", '{"age":21}') == (404, {"error": "Profile not found"})

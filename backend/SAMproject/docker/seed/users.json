@@ -12,7 +12,6 @@
                     "year":                 { "S": "junior" },
                     "major":                { "S": "Computer Science" },
                     "websites":             { "L": [{ "S": "https://github.com/sarahlee" }] },
-                    "defaultResume":        { "NULL": true },
                     "resumes":              { "M": {} },
                     "structuredJsonResume": { "NULL": true }
                 }

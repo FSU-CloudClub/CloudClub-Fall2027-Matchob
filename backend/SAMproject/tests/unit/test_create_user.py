@@ -73,7 +73,6 @@ def test_creates_profile_using_authenticated_id(endpoint, valid_profile):
         "userId": "user-123",
         **valid_profile,
         "websites": [],
-        "defaultResume": None,
         "resumes": {},
         "structuredJsonResume": None,
     }
@@ -161,7 +160,8 @@ def test_dynamodb_errors(endpoint, valid_profile, code, status, message):
     ("year", "invalid", "year must be one of: freshman, sophomore, junior, senior, graduate"),
     ("websites", "https://example.com", "websites must be a list of URLs"),
     ("websites", ["invalid"], "websites must be a list of URLs starting with http:// or https://"),
-    ("defaultResume", "resume-123", "defaultResume must be one of your resumes"),
+    ("defaultResume", "resume-123", "Unknown fields: defaultResume"),
+    ("defaultResume", None, "Unknown fields: defaultResume"),
 ])
 def test_invalid_profile_values(endpoint, valid_profile, field, value, message):
     invoke, table = endpoint
@@ -176,11 +176,10 @@ def test_accepts_age_boundaries_and_optional_fields(endpoint, valid_profile, age
         **valid_profile,
         "age": age,
         "websites": ["  https://example.com  "],
-        "defaultResume": None,
     }
     status, body = invoke(json.dumps(payload))
     assert status == 201
     assert body["age"] == age
     assert body["websites"] == ["https://example.com"]
-    assert body["defaultResume"] is None
+    assert "defaultResume" not in body
     assert table.put_item.call_args.kwargs["Item"] == body
