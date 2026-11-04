@@ -33,7 +33,7 @@ Returns all of the user's resumes, newest first, each with a fresh download link
 |---|---|---|---|
 | No user | 401 | `Unauthorized` | none |
 | `get_resumes` returns `None` | 404 | `Profile not found` | none |
-| `ClientError` from `get_item` | 500 | `Internal server error` | `logger.exception("dynamodb get_item failed")` |
+| `ClientError` from `get_item` | 500 | `Internal server error` | `logger.error("dynamodb get_item failed")` (no private exception details) |
 
 ## Infrastructure
 None. The `ListResumes` event and both policies are in `templates/s3-template.yaml`.
