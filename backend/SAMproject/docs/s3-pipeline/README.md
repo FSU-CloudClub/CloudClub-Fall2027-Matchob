@@ -76,9 +76,9 @@ resumes:                                           users/abc/resumes/9a1d....doc
   "3f6c...": {s3Key, name, tags,
               contentType, uploadedAt}
   "9a1d...": {...}
-defaultResume: "3f6c..."
 ```
 
+- **Resume selection:** the frontend supplies the selected resume with each request; no default is stored on the profile.
 - **Key format:** `users/<userId>/resumes/<resumeId>.<pdf|docx>`. The `userId` prefix keeps users' files apart and makes "delete everything for a user" one prefix.
 - **Never store URLs.** Store `s3Key` and sign a fresh URL for each response.
 - **Write to DynamoDB with nested paths** (`resumes.<id>`, `resumes.<id>.name`) and a `ConditionExpression`, so each write touches one resume and fails cleanly if it doesn't exist.
