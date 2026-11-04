@@ -9,7 +9,7 @@ from aws_lambda_powertools.utilities.typing import LambdaContext
 from matchob_common.auth import get_user_id
 from matchob_common.http import read_json_body, to_json
 from matchob_common.validators import validate_fields
-from profile_helpers import PROFILE_FIELDS, profile_exists
+from profile_helpers import PROFILE_FIELDS
 
 dynamodb = boto3.resource("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT") or None)
 table = dynamodb.Table(os.environ["USERS_TABLE"])
@@ -62,14 +62,12 @@ def get_profile():
 def create_user():
     """POST /profile: create the signed-in user's profile.
 
-    Body: every REQUIRED field in PROFILE_FIELDS; websites and defaultResume
-    are optional. The backend adds userId, resumes ({}) and
-    structuredJsonResume (null).
+    Body: every REQUIRED field in PROFILE_FIELDS; websites is optional.
+    The backend adds userId, resumes ({}) and structuredJsonResume (null).
 
     Responses:
         201: The created profile object.
-        400: Invalid JSON, a missing, invalid or unknown field, or a
-            defaultResume (a new profile has no resumes yet).
+        400: Invalid JSON, a missing, invalid or unknown field.
         401: No authenticated user.
         409: The user already has a profile.
         500: DynamoDB error.
@@ -85,8 +83,6 @@ def create_user():
     fields, error = validate_fields(body, PROFILE_FIELDS, partial=False)
     if error:
         return {"error": error}, 400
-    if fields["defaultResume"] is not None:
-        return {"error": "defaultResume must be one of your resumes"}, 400
 
     item = {"userId": user_id, **fields, "resumes": {}, "structuredJsonResume": None}
     try:
@@ -109,13 +105,11 @@ def put_profile():
     """PUT /profile: update some or all fields of the signed-in user's profile.
 
     Body: any non-empty subset of PROFILE_FIELDS. Fields that are not sent
-    keep their current values. A non-null defaultResume must be a key of
-    the profile's resumes.
+    keep their current values.
 
     Responses:
         200: The full updated profile object.
-        400: Invalid JSON, an invalid or unknown field, no fields sent, or a
-            defaultResume that isn't one of the user's resumes.
+        400: Invalid JSON, an invalid or unknown field, or no fields sent.
         401: No authenticated user.
         404: The user has no profile yet.
         500: DynamoDB error.
@@ -134,10 +128,6 @@ def put_profile():
 
     names = {f"#{k}": k for k in updates}
     condition = "attribute_exists(userId)"
-    default_resume = updates.get("defaultResume")
-    if default_resume is not None:
-        names.update({"#resumes": "resumes", "#defaultResumeId": default_resume})
-        condition += " AND attribute_exists(#resumes.#defaultResumeId)"
 
     try:
         result = table.update_item(
@@ -152,8 +142,6 @@ def put_profile():
         if error.response["Error"]["Code"] != "ConditionalCheckFailedException":
             logger.error("dynamodb update_item failed")
             return {"error": "Internal server error"}, 500
-        if default_resume is not None and profile_exists(table, user_id):
-            return {"error": "defaultResume must be one of your resumes"}, 400
         return {"error": "Profile not found"}, 404
 
     logger.info("profile updated", extra={"user_id": user_id})
