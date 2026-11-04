@@ -1,11 +1,12 @@
 import os
+import re
 import uuid
 
 import boto3
 from botocore.config import Config
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from aws_lambda_powertools import Logger
-from aws_lambda_powertools.event_handler import APIGatewayRestResolver
+from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response
 from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from matchob_common.auth import get_user_id
@@ -15,9 +16,11 @@ from resume_helpers import (
     BUCKET,
     UPLOAD_FIELDS,
     RESUME_FIELDS,
+    URL_EXPIRES_IN,
     get_resumes,
     now_iso,
     presign_upload,
+    presign_download,
     resume_path_names,
     s3_key,
     table,
@@ -33,6 +36,71 @@ s3 = boto3.client(
 logger = Logger()
 app = APIGatewayRestResolver(serializer=to_json)
 
+@app.not_found
+def handle_unknown_route(error):
+    # Keep unmatched paths out of the generic 500 handler; never echo the path.
+    return Response(status_code=404, content_type="application/json",
+                    body=to_json({"error": "Not found"}))
+
+@app.exception_handler(Exception)
+def handle_unexpected_error(error):
+    logger.error("unexpected resumes failure", extra={"error_type": type(error).__name__})
+    return Response(status_code=500, content_type="application/json",
+                    body=to_json({"error": "Internal server error"}))
+
+
+@app.delete("/resumes/<resume_id>")
+def delete_resume(resume_id):
+    user_id = get_user_id(app.current_event.raw_event)
+    if user_id is None:
+        return {"error": "Unauthorized"}, 401
+
+    # Accept UUIDs and existing opaque IDs, without whitespace or path separators.
+    if not isinstance(resume_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", resume_id):
+        return {"error": "Invalid resume ID"}, 400
+
+    try:
+        result = table.update_item(
+            Key={"userId": user_id},
+            UpdateExpression="REMOVE #resumes.#resumeId",
+            ExpressionAttributeNames=resume_path_names(resume_id),
+            ConditionExpression="attribute_exists(#resumes.#resumeId)",
+            ReturnValues="ALL_OLD",
+        )
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return {"error": "Resume not found"}, 404
+        logger.error("dynamodb update_item failed")
+        return {"error": "Internal server error"}, 500
+
+    except BotoCoreError:
+        logger.error("dynamodb request failed")
+        return {"error": "Internal server error"}, 500
+
+    old = result["Attributes"]
+    stored = old["resumes"][resume_id]
+    if old.get("defaultResume") == resume_id:
+        try:
+            table.update_item(
+                Key={"userId": user_id},
+                UpdateExpression="SET #defaultResume = :null",
+                ExpressionAttributeNames={"#defaultResume": "defaultResume"},
+                ExpressionAttributeValues={":null": None, ":resumeId": resume_id},
+                ConditionExpression="#defaultResume = :resumeId",
+            )
+        except ClientError as exc:
+            if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
+                logger.error("clear defaultResume failed")
+        except BotoCoreError:
+            logger.error("clear defaultResume request failed")
+
+    try:
+        s3.delete_object(Bucket=BUCKET, Key=stored["s3Key"])
+    except (ClientError, BotoCoreError):
+        logger.error("s3 delete_object failed")
+
+    logger.info("resume deleted", extra={"user_id": user_id, "resume_id": resume_id})
+    return {"message": "Resume deleted"}
 
 # Add one function per endpoint in the Resumes section of
 # docs/general/api-contracts.md, e.g. @app.get("/resumes"). The routes are already in
@@ -72,7 +140,7 @@ def create_upload_url():
     except ClientError as error:
         if error.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return {"error": "Profile not found"}, 404
-        logger.exception("dynamodb update_item failed")
+        logger.error("dynamodb update_item failed")
         return {"error": "Internal server error"}, 500
 
     upload_url = presign_upload(key, fields["contentType"])
@@ -92,37 +160,61 @@ def list_resumes():
     user_id = get_user_id(app.current_event.raw_event)
     if not user_id:
         return {"error": "Unauthorized"}, 401
-
-    # Read only this user's resume details from DynamoDB, not the resume files.
-    # If AWS reports a database error, log the details and send a general error.
+      
     try:
         resumes = get_resumes(user_id)
     except ClientError:
         logger.exception("dynamodb get_item failed")
         return {"error": "Internal server error"}, 500
 
-    # None means the profile does not exist: return 404 (not found).
-    # An empty map means the profile exists but has no resumes: return [] below.
     if resumes is None:
         return {"error": "Profile not found"}, 404
 
-    # Each entry contains a resume ID and its stored details.
-    # Upload times use a consistent UTC format, so sorting their text works.
-    # reverse=True puts the newest upload first.
     sorted_resumes = sorted(
         resumes.items(), key=lambda item: item[1]["uploadedAt"], reverse=True
     )
 
-    # Build the list the frontend expects. The helper adds a fresh download link
-    # and its expiry time, and leaves the internal s3Key out of the public fields.
-    # If there are no resumes, this loop is skipped and result stays empty.
     result = []
     for resume_id, stored in sorted_resumes:
         result.append(to_resume_object(resume_id, stored))
 
-    # Record the user and number of resumes returned, then send 200 (success).
-    logger.info("resumes listed", extra={"user_id": user_id, "count": len(result)})
+    logger.info(
+        "resumes listed",
+        extra={"user_id": user_id, "count": len(result)},
+    )
     return result, 200
+
+
+@app.get("/resumes/<resume_id>/download-url")
+def create_download_url(resume_id):
+    """Return a fresh download link for one of the caller's resumes."""
+    user_id = get_user_id(app.current_event.raw_event)
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+
+    if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", resume_id):
+        return {"error": "Invalid resume ID"}, 400
+
+    try:
+        resumes = get_resumes(user_id)
+
+        if resumes is None or resume_id not in resumes:
+            # Keep missing profiles, missing resumes, and foreign resumes indistinguishable.
+            return {"error": "Resume not found"}, 404
+
+        stored = resumes[resume_id]
+        url = presign_download(stored["s3Key"], stored["name"])
+    except Exception:
+        # SDK service/transport/signing failures must not expose internals.
+        # Exception messages can contain private data; never log them.
+        logger.error("resume download failed")
+        return {"error": "Internal server error"}, 500
+
+    logger.info(
+        "resume download url created",
+        extra={"user_id": user_id, "resume_id": resume_id},
+    )
+    return {"downloadUrl": url, "expiresIn": URL_EXPIRES_IN}, 200
 
 @app.patch("/resumes/<resume_id>")                              # registers the PATCH endpoint for a specific resume
 def update_resume(resume_id):                                   # defines the function and receives the resume ID from the URL
@@ -146,7 +238,7 @@ def update_resume(resume_id):                                   # defines the fu
 
     if error:                                                    # checks whether field validation failed
         return {"error": error}, 400                             # returns HTTP 400 if the supplied fields are invalid
-    
+
     updates = []                                                  # stores the DynamoDB SET expressions for fields being updated
     names = resume_path_names(resume_id)                           # maps the resumes attribute and resume ID to safe DynamoDB placeholders
     values = {}                                                    # stores the validated values that DynamoDB will write
@@ -180,7 +272,7 @@ def update_resume(resume_id):                                   # defines the fu
         if error.response["Error"]["Code"] == "ConditionalCheckFailedException":  # checks whether the resume was missing
             return {"error": "Resume not found"}, 404                  # returns HTTP 404 without creating a new resume
 
-        logger.exception("dynamodb update_item failed")               # logs unexpected DynamoDB errors for investigation
+        logger.error("dynamodb update_item failed")               # logs unexpected DynamoDB errors for investigation
         return {"error": "Internal server error"}, 500                # returns HTTP 500 for an unexpected database failure
 
     updated_item = response["Attributes"]                              # retrieves the updated DynamoDB user record
@@ -198,6 +290,7 @@ def update_resume(resume_id):                                   # defines the fu
     )
     return resume, 200                                                 # returns the updated resume with HTTP 200
 
-@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
+# Never log request bodies, even if POWERTOOLS_LOGGER_LOG_EVENT is enabled.
+@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST, log_event=False)
 def lambda_handler(event: dict, context: LambdaContext) -> dict:
     return app.resolve(event, context)

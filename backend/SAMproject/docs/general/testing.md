@@ -180,4 +180,20 @@ Check terminal 1 (the `sam local` output) first. The handler prints `DYNAMODB_EN
 
 ---
 
+## Pending privacy verification after dev deployment — P9-2
+
+**P9-2 remains Partial. Do not mark it complete based on the automated backend tests.** After deploying to dev/test AWS and connecting the extension, complete this check before release. It depends on working resume list/download routes and extension integration.
+
+- Run upload → list → rename → preview/download → suggestions → delete with a fake resume containing unique name, email, phone, resume-text, and job-text markers.
+- Search the extension's DevTools consoles, all relevant Lambda CloudWatch logs, and configured API/storage logs for each marker, including failure paths.
+- Confirm expected operation logs exist and no markers appear. Record the deployed revision, run time window, log sources searched, and results in the P9-2 checklist entry. Missing steps or unavailable logs leave the case Partial.
+
+See the [P9-2 test procedure](privacy-log-testing.md) and [privacy checklist](privacy-safe-fetch-checklist.md).
+
 New to a term? See the [glossary](glossary.md).
+
+## Pending deployed isolation verification — P3-4/P3-5
+
+After dev deployment, use two synthetic authenticated accounts with distinct resumes. Confirm B cannot obtain A's metadata or fresh URL through list, download-url, or PATCH. Repeat with nonexistent and neighboring IDs, raw file keys/URLs, traversal segments, encoded/double-encoded separators, and foreign userId/key hints in query/body. The local test matrix is in `tests/test_resume_isolation.py`.
+
+Preserve raw paths when sending traversal probes (for example, curl's `--path-as-is`) and record what was actually sent. API Gateway/browser decoding and normalization are not exercised by direct Lambda unit tests. Require rejection without foreign data or signed URLs for invalid/foreign targets; valid own-resource requests may ignore targeting hints and return only caller-owned data. Also verify direct unsigned S3 access is denied (P5-1). Record revision, request variants, statuses, and outcomes without publishing signed URLs. A copied valid signed URL is a bearer credential and is a separate scenario.

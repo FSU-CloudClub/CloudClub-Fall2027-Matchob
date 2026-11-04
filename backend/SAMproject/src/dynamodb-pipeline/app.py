@@ -1,9 +1,9 @@
 import os
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from aws_lambda_powertools import Logger
-from aws_lambda_powertools.event_handler import APIGatewayRestResolver
+from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response
 from aws_lambda_powertools.logging import correlation_paths
 from aws_lambda_powertools.utilities.typing import LambdaContext
 from matchob_common.auth import get_user_id
@@ -18,6 +18,16 @@ BUCKET = os.environ["UPLOAD_BUCKET"]
 
 logger = Logger()
 app = APIGatewayRestResolver(serializer=to_json)
+
+
+@app.exception_handler([BotoCoreError, ClientError])
+def handle_aws_failure(error):
+    """Handle transport errors and failed follow-up reads without private details."""
+    logger.error("profile AWS operation failed")
+    return Response(
+        status_code=500, content_type="application/json",
+        body=to_json({"error": "Internal server error"}),
+    )
 
 
 @app.get("/profile")
@@ -37,7 +47,7 @@ def get_profile():
     try:
         response = table.get_item(Key={"userId": user_id})
     except ClientError:
-        logger.exception("dynamodb get_item failed")
+        logger.error("dynamodb get_item failed")
         return {"error": "Internal server error"}, 500
 
     item = response.get("Item")
@@ -87,7 +97,7 @@ def create_user():
     except ClientError as error:
         if error.response["Error"]["Code"] == "ConditionalCheckFailedException":
             return {"error": "Profile already exists"}, 409
-        logger.exception("dynamodb put_item failed")
+        logger.error("dynamodb put_item failed")
         return {"error": "Internal server error"}, 500
 
     logger.info("profile created", extra={"user_id": user_id})
@@ -140,7 +150,7 @@ def put_profile():
         )
     except ClientError as error:
         if error.response["Error"]["Code"] != "ConditionalCheckFailedException":
-            logger.exception("dynamodb update_item failed")
+            logger.error("dynamodb update_item failed")
             return {"error": "Internal server error"}, 500
         if default_resume is not None and profile_exists(table, user_id):
             return {"error": "defaultResume must be one of your resumes"}, 400
@@ -170,7 +180,7 @@ def delete_user():
             ReturnValues="ALL_OLD",
         ).get("Attributes")
     except ClientError:
-        logger.exception("dynamodb delete_item failed")
+        logger.error("dynamodb delete_item failed")
         return {"error": "Internal server error"}, 500
 
     if item is None:
@@ -180,8 +190,8 @@ def delete_user():
     for resume in item.get("resumes", {}).values():
         try:
             s3.delete_object(Bucket=BUCKET, Key=resume["s3Key"])
-        except ClientError:
-            logger.exception("s3 resume deletion failed", extra={"user_id": user_id, "s3_key": resume["s3Key"]})
+        except (ClientError, BotoCoreError):
+            logger.error("s3 resume deletion failed", extra={"user_id": user_id})
             cleanup_failed = True
     if cleanup_failed:
         return {"error": "Internal server error"}, 500
@@ -190,6 +200,7 @@ def delete_user():
     return {"message": "Profile deleted"}
 
 
-@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)
+# Never log request bodies, even if POWERTOOLS_LOGGER_LOG_EVENT is enabled.
+@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST, log_event=False)
 def lambda_handler(event: dict, context: LambdaContext) -> dict:
     return app.resolve(event, context)

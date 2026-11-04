@@ -151,3 +151,49 @@ Stay in your own files, add to the end of shared files instead of rewriting them
 1. **Pull `main`** (`git switch main`, `git pull`) and **create a branch for your first task.**
 2. **At the start of every dev session,** pull and merge in the latest `main` (`git fetch`, `git merge origin/main`) before writing any code.
 3. **Aim to finish at least one task every session,** so every session ends with one PR opened.
+
+## Meeting 4
+**Date: 10/27/2026**
+
+### Changes since Meeting 3 (Carter)
+- **`defaultResume` is removed** from the [API contract](general/api-contracts.md#profile). The frontend now sends the resume to use with each request, so the profile doesn't need a default. The code and the other docs still have it; tasks 3–4 below remove it.
+- **New endpoint `POST /suggestions`** in the [API contract](general/api-contracts.md#suggestions). The frontend parses the chosen resume into text and sends it with the job description. The backend calls a prompt that the AI team sets up in the Bedrock console (model, system prompt, output format, guardrail) and returns its JSON unchanged. It's synchronous, and nothing is saved.
+- **Bedrock pipeline is set up.** Docs: [bedrock-pipeline/README.md](bedrock-pipeline/README.md). Every setup task is done:
+  - `bedrock_helpers.py` with all helpers, tested by `tests/unit/test_bedrock_helpers.py` (23 passing).
+  - `app.py` is cleaned up: no DynamoDB, and it imports everything the route needs.
+  - `templates/bedrock-template.yaml` has the API, the `POST /suggestions` route, Bedrock permissions and a 28 s timeout.
+  - The root `template.yaml` has 3 new parameters for the console IDs. See [nested-stacks.md](general/nested-stacks.md#how-values-move-between-stacks).
+  - `samconfig.toml` and `env.example.json` have placeholders for the IDs.
+- **Heads-up:** `tests/unit/test_create_user.py` still has 19 failing tests, because it tests the old profile fields. That's Meeting 3 task 6, still open.
+
+### Tasks
+
+| # | Task | Person | Depends on | Doc |
+|---|---|---|---|---|
+| 1 | `POST /suggestions`: write `create_suggestions()` in `src/bedrock-pipeline/app.py` and `tests/unit/test_create_suggestions.py` | | | [create-suggestions.md](bedrock-pipeline/endpoints/create-suggestions.md) |
+| 2 | Get the prompt version ARN, guardrail ID and guardrail version from the AI team. Send them the variable names and output format they must match. Fill in `parameter_overrides` in `samconfig.toml`, deploy, and run the smoke test | | 1 | [bedrock-pipeline/README.md → What we own](bedrock-pipeline/README.md#what-we-own-and-what-the-console-owns) |
+| 3 | Remove `defaultResume` from the profile code (see the checklist below) | | | [api-contracts.md → Profile](general/api-contracts.md#profile) |
+| 4 | Remove `defaultResume` from the docs (see the checklist below) | | 3 | Same |
+
+**"Depends on"** lists task numbers. Task 2 also needs the AI team to have the prompt and guardrail ready in the console. Tasks 3 and 4 can be one person and one PR if that's easier.
+
+### Task 3 checklist: `defaultResume` in code
+- [ ] `src/dynamodb-pipeline/profile_helpers.py`: remove `"defaultResume"` from `PROFILE_FIELDS`. Remove `profile_exists`, which is only used for the `defaultResume` check.
+- [ ] `src/dynamodb-pipeline/app.py`, `create_user()`: remove the `defaultResume` check (lines 76–77) and the docstring mentions.
+- [ ] `src/dynamodb-pipeline/app.py`, `put_profile()`: remove the `default_resume` condition (lines 125–128) and the `400` branch on `ConditionalCheckFailedException` (lines 143–144). Every failed condition is now a `404`. Update the docstring and the `profile_exists` import.
+- [ ] `docker/seed/users.json`: remove the `defaultResume` attribute from the seed user.
+- [ ] Profile unit tests (Meeting 3 tasks 6 and 7): don't test `defaultResume`. A body that sends it should get `400 Unknown fields: defaultResume`.
+- [ ] If a deployed table already has profiles, remove the attribute from them (`update_item` with `REMOVE defaultResume` for each item), or delete the test profiles. Otherwise `GET /profile` keeps returning it.
+
+### Task 4 checklist: `defaultResume` in docs
+- [ ] [dynamodb-pipeline/README.md](dynamodb-pipeline/README.md): the data model row.
+- [ ] [dynamodb-pipeline/helpers.md](dynamodb-pipeline/helpers.md): the `PROFILE_FIELDS` row and the `profile_exists` section.
+- [ ] [post-profile.md](dynamodb-pipeline/endpoints/post-profile.md): step 4 and the `defaultResume sent` error row.
+- [ ] [put-profile.md](dynamodb-pipeline/endpoints/put-profile.md): the intro, steps 5 and 7, the `ConditionExpression` row, the error row, the `Done when` curls and the gotcha.
+- [ ] [s3-pipeline/README.md](s3-pipeline/README.md): `defaultResume` in the storage design diagram.
+- [ ] [delete-resume.md](s3-pipeline/endpoints/delete-resume.md): step 4, all of "Call 2", the call 2 error rows and the `PUT /profile` line in `Done when`. Delete becomes one DynamoDB call, then the S3 delete. Whoever builds `DELETE /resumes/{resumeId}` (Meeting 3 task 5) should build it without the call 2 step.
+
+### Next steps
+1. **Pull `main`** and branch for one task (`git switch -c <name>/<task>`).
+2. **Post in the group chat before editing a shared file.** Task 3 touches `profile_helpers.py` and the seed file, which the profile tests also use.
+3. **Before opening a PR:** `sam validate --lint`, `sam build`, and `pytest tests/unit` pass for your files.

@@ -47,7 +47,7 @@ The resume ID goes in `ExpressionAttributeNames` (`#defaultResumeId`) because it
 | Any `validate_fields` failure | 400 | Its message, e.g. `Provide at least one field to update` | none |
 | Condition failed, `defaultResume` sent, profile exists | 400 | `defaultResume must be one of your resumes` | none |
 | Condition failed otherwise | 404 | `Profile not found` | none |
-| Any other `ClientError` | 500 | `Internal server error` | `logger.exception("dynamodb update_item failed")` |
+| Other `ClientError` from `update_item` | 500 | `Internal server error` | `logger.error("dynamodb update_item failed")`, no exception details |
 
 `ConditionalCheckFailedException` doesn't say which part of the condition failed, which is why step 7 needs the extra read.
 
@@ -67,6 +67,10 @@ curl -i -X PUT localhost:3001/profile -H "X-Local-User: nobody" -H "Content-Type
 ## Gotchas
 - Writing `SET name = :name` without a placeholder fails, because `name` is reserved.
 - `defaultResume: null` must skip the resume check, or clearing the default would always fail.
+- A failed follow-up existence read returns generic JSON 500, not a misleading missing-profile 404. AWS transport failures are also handled as 500 without logging exception details.
+
+## Unit tests
+`tests/unit/test_profile_endpoints.py` covers partial updates and the full returned profile, use of the authenticated caller's key, authentication before validation, malformed/invalid bodies and backend-only fields, setting/clearing the default resume, conditional failures (400 versus 404), and generic update-error 500. Tests verify that invalid requests never write and that default-resume ownership is included in the atomic condition. See the [pipeline test command and results](../README.md#unit-tests-task-7); AWS clients are mocked.
 
 ---
 
