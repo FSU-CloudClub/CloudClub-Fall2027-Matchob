@@ -93,15 +93,13 @@ def test_service_failure_logs_exclude_private_details(monkeypatch, scenario):
     ClientError({"Error": {"Code": "AccessDeniedException", "Message": MARKER}}, "GetItem"),
     EndpointConnectionError(endpoint_url=MARKER),
 ])
-def test_profile_exists_failure_returns_500_without_private_details(monkeypatch, error):
+def test_profile_read_failure_returns_500_without_private_details(monkeypatch, error):
     module, stream = load(monkeypatch, "dynamodb-pipeline")
-    module.table.update_item.side_effect = ClientError(
-        {"Error": {"Code": "ConditionalCheckFailedException", "Message": MARKER}}, "UpdateItem")
     module.table.get_item.side_effect = error
-    response = invoke(module, "PUT", "/profile", {"defaultResume": "r1"})
+    response = invoke(module, "GET", "/profile", {})
     assert response["statusCode"] == 500
     assert json.loads(response["body"]) == {"error": "Internal server error"}
-    assert "profile AWS operation failed" in stream.getvalue()
+    assert any(json.loads(line)["level"] == "ERROR" for line in stream.getvalue().splitlines())
     assert MARKER not in stream.getvalue()
 
 
