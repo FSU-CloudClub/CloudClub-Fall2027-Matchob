@@ -183,12 +183,13 @@ class TestFindNumbers(unittest.TestCase):
 
 class TestFindScopeWords(unittest.TestCase):
     def test_verb_forms_and_co_led(self):
-        for word, name in (("Lead", "led"), ("leads", "led"), ("leading", "led"),
-                           ("managing", "managed"), ("Oversaw", "oversaw"),
-                           ("overseeing", "oversaw"), ("Headed", "headed")):
+        for word, name in (("Led", "led"), ("leading", "led"), ("managing", "managed"),
+                           ("Oversaw", "oversaw"), ("overseeing", "oversaw"), ("Headed", "headed")):
             with self.subTest(word=word):
                 self.assertEqual(find_scope_words(f"{word} the project"), {name})
         self.assertEqual(find_scope_words("Co-led and co-leading the project"), set())
+        # Noun-shaped forms are not claims: "lead generation", "UI designs", "team heads".
+        self.assertEqual(find_scope_words("Built lead generation and UI designs for team heads"), set())
         self.assertEqual(find_scope_words("Used design patterns in my own project"), set())
 
     def test_finds_scope_verbs(self):
