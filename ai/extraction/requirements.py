@@ -1,3 +1,6 @@
+# NOT USED BY THE LIVE APP. We moved to the one-call plan, so the app no longer
+# has a separate requirements step. This module is kept in case we need it later.
+
 """Pull the hiring requirements out of a job posting.
 
 `extract_requirements` fills in the v1 prompt (ai/prompts/requirement_extraction.v1.md),

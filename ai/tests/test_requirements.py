@@ -1,9 +1,8 @@
 """Tests for ai.extraction.requirements, using a fake model (no real model calls)."""
 
 import json
+import unittest
 from pathlib import Path
-
-import pytest
 
 from ai.extraction.requirements import extract_requirements
 
@@ -44,28 +43,34 @@ def make_fake_model(reply):
     return fake_model
 
 
-def test_returns_requirements_from_the_models_reply():
-    job_text = FIXTURE.read_text(encoding="utf-8")
-    model = make_fake_model(json.dumps({"requirements": JOB_01_REQUIREMENTS}))
+class ExtractRequirementsTests(unittest.TestCase):
+    def test_returns_requirements_from_the_models_reply(self):
+        job_text = FIXTURE.read_text(encoding="utf-8")
+        model = make_fake_model(json.dumps({"requirements": JOB_01_REQUIREMENTS}))
 
-    result = extract_requirements(job_text, model)
+        result = extract_requirements(job_text, model)
 
-    assert result == JOB_01_REQUIREMENTS
-    # The offsets in the ready-made reply still point at the right text in the fixture.
-    for req in result:
-        span = req["source_span"]
-        assert job_text[span["start"] : span["end"]] == span["text"] == req["text"]
+        self.assertEqual(result, JOB_01_REQUIREMENTS)
+        # The offsets in the ready-made reply still point at the right text in the fixture.
+        for req in result:
+            with self.subTest(id=req["id"]):
+                span = req["source_span"]
+                self.assertEqual(job_text[span["start"] : span["end"]], span["text"])
+                self.assertEqual(span["text"], req["text"])
 
-    # The model got the prompt's system message, and the posting pasted into the user message.
-    assert len(model.calls) == 1
-    system, user = model.calls[0]
-    assert system.startswith("You extract hiring requirements")
-    assert job_text in user
-    assert "{{JOB_TEXT}}" not in user
+        # The model got the prompt's system message, and the posting pasted into the user message.
+        self.assertEqual(len(model.calls), 1)
+        system, user = model.calls[0]
+        self.assertTrue(system.startswith("You extract hiring requirements"))
+        self.assertIn(job_text, user)
+        self.assertNotIn("{{JOB_TEXT}}", user)
+
+    def test_raises_value_error_when_the_reply_is_not_json(self):
+        model = make_fake_model("Sorry, I can't pull requirements out of that.")
+
+        with self.assertRaises(ValueError):
+            extract_requirements("Some job posting", model)
 
 
-def test_raises_value_error_when_the_reply_is_not_json():
-    model = make_fake_model("Sorry, I can't pull requirements out of that.")
-
-    with pytest.raises(ValueError):
-        extract_requirements("Some job posting", model)
+if __name__ == "__main__":
+    unittest.main()
