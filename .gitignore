@@ -1,2 +1,6 @@
 .venv/
 __pycache__/
+
+# QA reports: may contain locked results, never commit
+report*.md
+*_locked*.md

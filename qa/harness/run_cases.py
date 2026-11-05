@@ -2,8 +2,8 @@
 
 Usage (from the repo root, with the venv active):
     python -m qa.harness.run_cases qa/tricky_cases/tricky_cases_practice.json
-    python -m qa.harness.run_cases ai/fixtures/adversarial/cases.json --out results.md
-    python -m qa.harness.run_cases ~/Projects/matchob-private/tricky_cases_locked.json --out ~/Projects/matchob-private/results_locked.md
+    python -m qa.harness.run_cases ai/fixtures/adversarial/cases.json --out report.md
+    python -m qa.harness.run_cases ~/Projects/matchob-private/tricky_cases_locked.json --out ~/Projects/matchob-private/report_locked.md
 
 Each case file is a JSON list of objects with at least:
     name, source (the resume line), suggestion (MatchOB's rewrite), expected (supported / needs_confirmation / unsupported)
@@ -31,7 +31,7 @@ def norm_label(label):
 
 
 def load_cases(path):
-    cases = json.loads(Path(path).expanduser().read_text())
+    cases = json.loads(Path(path).expanduser().read_text(encoding="utf-8"))
     if not isinstance(cases, list):
         sys.exit(f"{path}: expected a JSON list of cases")
     problems = []
@@ -105,7 +105,7 @@ def main():
     print(text)
     if args.out:
         out = Path(args.out).expanduser()
-        out.write_text(text)
+        out.write_text(text, encoding="utf-8")
         print(f"Saved to {out}")
 
 
