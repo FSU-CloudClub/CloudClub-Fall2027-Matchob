@@ -243,14 +243,8 @@ def find_outcomes(text: str) -> set[str]:
 
 # Growth words are amounts too: "doubled" says the after number is at least twice the before.
 # Bare "double" and "twice" are left out: "double major" and "presented twice" claim no growth.
-MULTIPLIER_FORMS = {
-    "doubled": "doubled doubling",
-    "tripled": "tripled tripling",
-    "quadrupled": "quadrupled quadrupling",
-    "halved": "halved halving",
-}
-MULTIPLIER = {form: name for name, forms in MULTIPLIER_FORMS.items() for form in forms.split()}
 FACTORS = {"doubled": Decimal(2), "tripled": Decimal(3), "quadrupled": Decimal(4), "halved": Decimal("0.5")}
+MULTIPLIER = {form: name for name in FACTORS for form in (name, name[:-2] + "ing")}  # doubled, doubling
 CUT_IN_HALF = re.compile(r"\bcut(?:s|ting)?(?: [\w'-]+){0,4} in half\b")
 # clean() has already turned "from 400 to 700" into "from 400-700". Words can sit between
 # when the unit comes first ("from 30 minutes to 14") or the numbers are words ("from ten to twenty").

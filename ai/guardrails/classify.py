@@ -53,10 +53,8 @@ SKILLS_HEADING = re.compile(r"(?:technical |computer )?skills(?: ?(?:&|and) [a-z
 # in a word that only headings end in ("Professional Experience", "Work History", "Relevant
 # Coursework"). Tails that are also skill names (research, projects, leadership) are not in the
 # open list, so a one-skill-per-line Skills section ("Qualitative Research") does not end early.
-HEADINGS = {"experience", "work experience", "projects", "education", "leadership", "activities",
-            "involvement", "volunteer", "volunteering", "research", "awards", "honors",
-            "certifications", "publications", "interests", "coursework", "summary", "objective",
-            "profile", "employment"}
+HEADINGS = {"projects", "leadership", "volunteer", "volunteering", "research", "interests", "summary",
+            "objective", "profile"}  # the rest ("Experience", "Education"...) end in a heading tail
 HEADING_TAILS = {"experience", "history", "employment", "coursework", "education", "certifications",
                  "publications", "awards", "honors", "activities", "involvement"}
 BULLET = re.compile(r"\s*[-*•–▪]\s")
