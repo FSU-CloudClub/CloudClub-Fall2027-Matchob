@@ -22,22 +22,35 @@ Positions are counted in the exact string passed in, so slice that same string.
 import re
 
 
-# Every heading we recognize, mapped to the section name it starts.
-# Several headings can share one name: "TECHNICAL SKILLS" and "SKILLS" both
-# start "skills". Any other line, even all caps like a company name such as
-# "GOOGLE", is not a heading and leaves the section unchanged.
-HEADINGS = {
-    "EDUCATION": "education",
-    "EXPERIENCE": "experience",
-    "WORK EXPERIENCE": "experience",
-    "PROFESSIONAL EXPERIENCE": "experience",
-    "PROJECTS": "projects",
-    "SKILLS": "skills",
-    "TECHNICAL SKILLS": "skills",
-    "CERTIFICATIONS": "certifications",
-    "LEADERSHIP": "leadership",
-    "AWARDS": "awards",
+# Headings are found by their last word, so the many ways resumes name a
+# section all work: "EXPERIENCE", "NURSING EXPERIENCE" and "ACADEMIC EXPERIENCE"
+# are all experience; "SKILLS", "PERSONAL SKILLS", "SOFTWARE" and
+# "CORE COMPETENCIES" are all skills; "RESEARCH & PROJECTS" is projects.
+# Using the last word keeps a job title like "Software Engineer" from counting
+# as a skills heading. Only short, heading-looking lines are checked (see
+# _heading), so a bullet like "Gained experience in sales" never counts, and
+# "GOOGLE" isn't a heading because its last word isn't one of these.
+SECTION_WORDS = {
+    "experience": {"EXPERIENCE", "EMPLOYMENT", "HISTORY", "RESEARCH"},
+    "projects": {"PROJECT", "PROJECTS"},
+    "skills": {"SKILL", "SKILLS", "SOFTWARE", "COMPETENCY", "COMPETENCIES",
+               "TECHNOLOGIES", "TOOLS", "LANGUAGES"},
+    "education": {"EDUCATION", "ACADEMICS"},
+    "certifications": {"CERTIFICATION", "CERTIFICATIONS", "LICENSE", "LICENSES", "LICENSURE"},
+    "leadership": {"LEADERSHIP", "ACTIVITIES", "INVOLVEMENT", "VOLUNTEER", "VOLUNTEERING"},
+    "awards": {"AWARD", "AWARDS", "HONOR", "HONORS", "HONOURS"},
+    # Sections with no bullets or skills. They still count as headings, so the
+    # section above them ends: "INTERESTS" after SKILLS isn't read as more skills.
+    "other": {"SUMMARY", "OBJECTIVE", "PROFILE", "INTERESTS", "HOBBIES",
+              "PUBLICATIONS", "REFERENCES", "COURSEWORK"},
 }
+LAST_WORD_TO_SECTION = {word: section for section, words in SECTION_WORDS.items() for word in words}
+
+# A heading has at most this many words: "PROFESSIONAL WORK EXPERIENCE" fits.
+HEADING_MAX_WORDS = 4
+
+# Small words a Title Case heading can leave lowercase: "Honors and Awards".
+HEADING_SMALL_WORDS = {"and", "of", "the", "for", "&", "/"}
 
 # Sections where a plain line (no marker) is a bullet. Not education: lines
 # like "GPA 3.6" or "Relevant coursework: ..." are details, not bullets.
@@ -64,7 +77,7 @@ def split_resume(text: str) -> list[dict]:
     has_markers = any(MARKER.match(stripped) for _, _, stripped in lines)
 
     units = []
-    section = None        # current section name ("experience"), from HEADINGS
+    section = None        # current section name ("experience"), from the last heading
     open_unit = None      # the last unit, while the next line may still join it
     expecting_skills = False  # True right after a SKILLS heading
 
@@ -144,13 +157,23 @@ def _continues(unit: dict, stripped: str) -> bool:
 
 
 def _heading(stripped: str) -> str | None:
-    """Return the section name if this line is a known heading, else None.
+    """Return the section name if this line is a heading, else None.
 
-    Cleans the line first so "Skills:", "SKILLS" and "TECHNICAL  SKILLS"
-    (two spaces) all match.
+    A heading is a short line of only letters (plus & / - and '), in ALL CAPS
+    or Title Case, with an optional colon at the end. Its last word names the
+    section: "Technical Skills:", "TECHNICAL  SKILLS" and "SOFTWARE" are skills.
     """
-    cleaned = " ".join(stripped.upper().rstrip(":").split())
-    return HEADINGS.get(cleaned)
+    cleaned = stripped.rstrip(":").strip()
+    if not re.fullmatch(r"[A-Za-z][A-Za-z&/'\s-]*", cleaned):
+        return None  # digits, commas or periods: a sentence, a list or a date line
+    words = cleaned.split()
+    if len(words) > HEADING_MAX_WORDS:
+        return None
+    title_case = all(w[0].isupper() or w.lower() in HEADING_SMALL_WORDS for w in words)
+    if not (cleaned.isupper() or title_case):
+        return None  # "Gained experience" is a sentence, not a heading
+    last_word = re.findall(r"[A-Za-z]+", cleaned)[-1].upper()
+    return LAST_WORD_TO_SECTION.get(last_word)
 
 
 def _is_blank(stripped: str) -> bool:

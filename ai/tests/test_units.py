@@ -197,6 +197,67 @@ class TestSplitResume(unittest.TestCase):
                 self.assertEqual(units[0]["text"], "Python, SQL")
 
 
+class TestHeadings(unittest.TestCase):
+    """Headings are found by their last word, so real resumes' many names work."""
+
+    def test_heading_names_from_real_resumes(self):
+        cases = {
+            "NURSING EXPERIENCE": "experience",
+            "ACADEMIC EXPERIENCE": "experience",
+            "Volunteer Experience": "experience",
+            "RESEARCH & PROJECTS": "projects",
+            "SOFTWARE": "skills",
+            "PERSONAL SKILLS": "skills",
+            "CORE COMPETENCIES": "skills",
+            "Technical Skills:": "skills",
+            "Licenses & Certifications": "certifications",
+            "Honors and Awards": "awards",
+        }
+        for heading, section in cases.items():
+            with self.subTest(heading=heading):
+                units = split_resume(heading + "\n- Built a CLI tool.\n")
+                self.assertEqual(units[0]["section"], section)
+
+    def test_projects_heading_right_after_skills_ends_the_skills(self):
+        resume = "SKILLS\nPython, SQL\nRESEARCH & PROJECTS\nBuilt a resume parser.\n"
+        units = split_resume(resume)
+        self.assertEqual([(u["section"], u["text"]) for u in units], [
+            ("skills", "Python, SQL"),
+            ("projects", "Built a resume parser."),
+        ])
+
+    def test_summary_after_skills_is_not_more_skills(self):
+        resume = "SKILLS\nPython, SQL\nPROFESSIONAL SUMMARY\nHard-working student\n"
+        units = split_resume(resume)
+        self.assertEqual([u["text"] for u in units], ["Python, SQL"])
+
+    def test_lines_that_are_not_headings(self):
+        # A job title ends in "Engineer", not a section word, and GOOGLE has no
+        # section word, so neither changes the section of the bullet after them.
+        resume = ("EXPERIENCE\n"
+                  "SOFTWARE ENGINEER INTERN\n"
+                  "Software Engineer\n"
+                  "GOOGLE\n"
+                  "- Built a CLI tool.\n")
+        units = split_resume(resume)
+        self.assertEqual([(u["section"], u["text"]) for u in units], [
+            ("experience", "Built a CLI tool."),
+        ])
+
+    def test_sentence_with_a_section_word_is_not_a_heading(self):
+        # Not Title Case, so it's a bullet, not a heading that starts "experience".
+        resume = "PROJECTS\nGained experience in sales\n"
+        units = split_resume(resume)
+        self.assertEqual([(u["section"], u["text"]) for u in units], [
+            ("projects", "Gained experience in sales"),
+        ])
+
+    def test_skills_line_with_section_words_is_still_skills(self):
+        resume = "SKILLS\nSoftware testing, project planning\n"
+        units = split_resume(resume)
+        self.assertEqual(units[0]["text"], "Software testing, project planning")
+
+
 class TestSplitResumeOnAlex(unittest.TestCase):
     """The checklist tests on Lane 2's alex.txt."""
 
@@ -343,7 +404,8 @@ class TestSplitResumeOnAlexParsed(unittest.TestCase):
     def test_aws_lambda_stays_in_one_skills_unit(self):
         skills = [u for u in self.units if u["section"] == "skills"]
         self.assertEqual(len(skills), 1)
-        self.assertIn("AWS\nLambda, Linux", skills[0]["text"])
+        # Line breaks are "\n" or "\r\n" depending on the computer, so compare words.
+        self.assertIn("AWS Lambda, Linux", " ".join(skills[0]["text"].split()))
 
     def test_job_and_project_headers_are_left_out(self):
         texts = " ".join(u["text"] for u in self.units)
