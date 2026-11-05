@@ -308,6 +308,58 @@ class TestClassify(unittest.TestCase):
         self.assertEqual(classify("Helped move weekly reports from Excel to SQL.",
                                   "Helped migrate weekly reports from Excel to SQL.")["status"], "supported")
 
+    def test_rank_and_club_titles_are_claims(self):
+        # The first word of a rewrite is skipped as an ordinary capitalized word, so club roles
+        # and rank words are caught by the title check, in any position and case.
+        for suggestion, source, expected in (
+            ("Treasurer of the Computer Science Club", "Member of the Computer Science Club", "unsupported"),
+            ("Senior engineer who built dashboards", "Engineer who built dashboards", "unsupported"),
+            ("Worked as a senior software engineer", "Worked as a software engineer", "unsupported"),
+            ("Mentored new members as club mentor", "Welcomed new members to the club", "unsupported"),
+            ("Treasurer of the Computer Science Club", "Treasurer, Computer Science Club", "supported"),
+            ("Senior software engineer on the payments team", "Senior Software Engineer, payments team", "supported"),
+            # "principal" is not a title: spelling out PCA is half new wording, never an invented role.
+            ("Applied principal component analysis to survey data", "Applied PCA to survey data",
+             "needs_confirmation"),
+        ):
+            with self.subTest(suggestion=suggestion):
+                self.assertEqual(classify(suggestion, source)["status"], expected)
+
+    def test_noun_lead_and_designs_do_not_back_led_and_designed(self):
+        for suggestion, source, expected in (
+            ("Led lead generation dashboard build", "Built lead generation dashboard", "needs_confirmation"),
+            ("Designed UI in Figma", "Created UI designs in Figma", "needs_confirmation"),
+            ("Led the migration to AWS", "Leading the migration to AWS", "supported"),
+            ("Designed the schema", "Designing the schema", "supported"),
+        ):
+            with self.subTest(suggestion=suggestion):
+                self.assertEqual(classify(suggestion, source)["status"], expected)
+
+    def test_half_new_wording_needs_confirmation(self):
+        for suggestion, source, expected in (
+            ("Built login page with multi-factor authentication", "Built login page for web app",
+             "needs_confirmation"),
+            ("Built in Go", "Built in golang", "supported"),  # one swapped word is rewording
+            ("Developed dashboards", "Built dashboards", "supported"),
+            ("Quadrupled the club's members", "Grew club membership from 10 to 40 members", "supported"),
+        ):
+            with self.subTest(suggestion=suggestion):
+                self.assertEqual(classify(suggestion, source)["status"], expected)
+
+    def test_any_section_heading_ends_the_skills_list(self):
+        for heading in ("Professional Experience", "Work History", "Employment", "Relevant Coursework:",
+                        "Leadership and Volunteer Experience", "Projects", "Summary"):
+            source = f"Skills\nExcel, Python\n{heading}\n- Tracked weekly inventory in Excel"
+            with self.subTest(heading=heading):
+                self.assertEqual(classify("Tracked weekly inventory in Excel", source)["status"], "supported")
+        # A tool or skill on its own line, or a bullet, does not end the Skills list.
+        for line in ("Power BI", "- Power BI", "Customer Experience, Sales", "Qualitative Research",
+                     "Machine Learning Projects"):
+            source = f"Skills\nExcel\n{line}\nExperience\n- Tracked weekly inventory"
+            with self.subTest(line=line):
+                self.assertEqual(classify("Tracked weekly inventory in Excel", source)["status"],
+                                 "needs_confirmation")
+
 
 class TestCheckRecommendation(unittest.TestCase):
     ALEX = (RESUMES / "alex.txt").read_text(encoding="utf-8")

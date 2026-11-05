@@ -49,16 +49,30 @@ SKILLS_LABEL = re.compile(
 
 
 SKILLS_HEADING = re.compile(r"(?:technical |computer )?skills(?: ?(?:&|and) [a-z ]+)?:?", re.IGNORECASE)
+# A heading is a known section name ("Experience", "Projects", "Summary:") or a short line ending
+# in a word that only headings end in ("Professional Experience", "Work History", "Relevant
+# Coursework"). Tails that are also skill names (research, projects, leadership) are not in the
+# open list, so a one-skill-per-line Skills section ("Qualitative Research") does not end early.
 HEADINGS = {"experience", "work experience", "projects", "education", "leadership", "activities",
-            "involvement", "volunteer", "research", "awards", "honors", "certifications",
-            "publications", "interests"}
+            "involvement", "volunteer", "volunteering", "research", "awards", "honors",
+            "certifications", "publications", "interests", "coursework", "summary", "objective",
+            "profile", "employment"}
+HEADING_TAILS = {"experience", "history", "employment", "coursework", "education", "certifications",
+                 "publications", "awards", "honors", "activities", "involvement"}
+BULLET = re.compile(r"\s*[-*•–▪]\s")
 
 
 def _is_heading(line: str) -> bool:
-    """A section name ("Experience", "PROJECTS:") or an all-caps line of 2+ words with no comma.
-    A lone all-caps skill like "SQL" is not a heading, so it can't end the Skills section early."""
+    """A section name, a line of up to four words ending in a heading tail, or an all-caps line of
+    2+ words; none has a comma or starts a bullet. A lone all-caps skill like "SQL", a tool on its
+    own line like "Power BI" or a skill like "Market Research" is not a heading, so none of them
+    can end the Skills section early."""
     text = line.strip().rstrip(":").strip()
-    return text.casefold() in HEADINGS or (text.isupper() and len(text.split()) > 1 and "," not in text)
+    words = text.casefold().split()
+    if "," in text or BULLET.match(line):
+        return False
+    return (" ".join(words) in HEADINGS or (0 < len(words) <= 4 and words[-1] in HEADING_TAILS)
+            or (text.isupper() and len(words) > 1))
 
 
 def _used_text(resume: str) -> str:
@@ -77,9 +91,10 @@ def _used_text(resume: str) -> str:
 
 
 def _stems(text: str) -> set[str]:
-    """First five letters of each content word: not a stopword, has a letter, not a pure number."""
+    """First five letters of each content word: not a stopword, has a letter, not a pure number,
+    longer than one letter (the "s" of "club's" is not a word)."""
     words = re.findall(r"\w+", normalize(text))
-    return {w[:5] for w in words if re.search(r"[^\W\d_]", w) and w not in STOPWORDS}
+    return {w[:5] for w in words if len(w) > 1 and re.search(r"[^\W\d_]", w) and w not in STOPWORDS}
 
 
 def classify(suggestion: str, resume: str, evidence: str = "") -> dict:
@@ -205,9 +220,12 @@ def classify(suggestion: str, resume: str, evidence: str = "") -> dict:
             # Names the tool list doesn't know (C, Postman, GA4) get the same Skills check.
             confirm.append(f"'{word}' is only in your Skills list")
 
+    # Half or more of the content words new, and at least two of them: one swapped word
+    # ("Built in Go" for "Built in golang") is rewording, half a bullet is new content.
     # ponytail: word overlap stands in for the planned meaning-level check; replace it when that lands
     wanted = _stems(suggestion)
-    if len(wanted & _stems(resume)) * 2 < len(wanted):
+    new_words = wanted - _stems(resume)
+    if len(new_words) >= 2 and len(new_words) * 2 >= len(wanted):
         confirm.append("Most of this wording isn't in your resume")
 
     status = "unsupported" if unsupported else "needs_confirmation" if confirm else "supported"

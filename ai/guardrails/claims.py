@@ -39,29 +39,35 @@ NUMBER_PATTERN = re.compile(
 )
 
 # Verbs that claim more responsibility than "helped" or "worked on". Every form maps to one
-# name, so "leading" and "led" are the same claim. Bare "design", "direct" and "own" are left
-# out because as nouns and adjectives they are everyday words.
+# name, so "leading" and "led" are the same claim. Forms that are usually nouns on a resume
+# ("lead generation", "UI designs", "team heads", "own", "direct") are left out, so "Led ..."
+# is not backed by "Built lead generation ...". A present-tense "Lead a team" bullet therefore
+# does not back "Led a team" either; that rewrite gets needs_confirmation, the safe side.
 SCOPE_FORMS = {
-    "led": "lead leads leading led",
+    "led": "leading led",
     "managed": "manage manages managing managed",
     "owned": "owns owning owned",
     "architected": "architects architecting architected",
-    "designed": "designs designing designed",
+    "designed": "designing designed",
     "spearheaded": "spearhead spearheads spearheading spearheaded",
     "directed": "directs directing directed",
     "founded": "founds founded founding",
     "oversaw": "oversee oversees overseeing oversaw overseen",
-    "headed": "heads headed heading",
+    "headed": "headed heading",
     "supervised": "supervise supervises supervising supervised",
     "chaired": "chairs chaired chairing",
 }
 SCOPE = {form: name for name, forms in SCOPE_FORMS.items() for form in forms.split()}
 
-# Job titles. Singular only: "worked with engineers" names other people, not the user's title.
+# Job titles and rank words. Singular only: "worked with engineers" names other people, not
+# the user's title. Rank words ("senior engineer") are titles too, but not "principal" (principal
+# component analysis). Club roles ("Treasurer of ...") are checked here because the first word
+# of a rewrite is otherwise skipped as an ordinary capitalized word.
 TITLES = {
     "intern", "engineer", "developer", "programmer", "analyst", "scientist", "manager",
     "supervisor", "director", "coordinator", "specialist", "consultant", "administrator",
     "technician", "architect", "president", "founder", "officer", "executive",
+    "treasurer", "secretary", "chair", "captain", "mentor", "tutor", "senior", "junior",
 }
 
 
