@@ -1,118 +1,79 @@
-
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
+Description: Matchob backend - root stack that wires the service stacks together
 
-Globals:
-  Function:
-    Layers: 
-      - !Ref SharedLayer
-    Runtime: python3.13
-    Timeout: 10
-    Environment:
-      Variables:
-        USERS_TABLE: !Ref MatchobUsersTable
-        DYNAMODB_ENDPOINT: ""
-        S3_ENDPOINT: ""
+# IDs of the prompt and guardrail made in the Bedrock console. Set them with
+# parameter_overrides in samconfig.toml. See docs/bedrock-pipeline/README.md.
+Parameters:
+  PromptArn:
+    Type: String
+  GuardrailId:
+    Type: String
+  GuardrailVersion:
+    Type: String
+  BedrockModelResourceArns:
+    Type: CommaDelimitedList
+    Description: Exact model and inference profile ARNs used by the console prompt (include destination model ARNs for cross-region inference).
+  UploadBucketName:
+    Type: String
+    Default: ""
+    Description: Existing uploads bucket name when updating a deployed stack; leave empty for new stacks.
+
+Conditions:
+  HasUploadBucketName: !Not [!Equals [!Ref UploadBucketName, ""]]
 
 Resources:
-
-  # Database for user profiles
-  MatchobUsersTable:
-    Type: AWS::DynamoDB::Table
+  SharedStack:
+    Type: AWS::Serverless::Application
     Properties:
-      TableName: MatchobUsers
-      BillingMode: PAY_PER_REQUEST
-      AttributeDefinitions:
-        - AttributeName: userId
-          AttributeType: S
-      KeySchema:
-        - AttributeName: userId
-          KeyType: HASH
+      Location: templates/shared-template.yaml
 
-  # Cognito User Pool
-  MatchobUserPool:
-    Type: AWS::Cognito::UserPool
+  ProfileStack:
+    Type: AWS::Serverless::Application
     Properties:
-      UserPoolName: matchob-dev-users
-      UsernameAttributes:
-        - email
-      AutoVerifiedAttributes:
-        - email
-      Policies:
-        PasswordPolicy:
-          MinimumLength: 12
+      Location: templates/dynamodb-template.yaml
+      Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
+        UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
 
-  # Frontend application client
-  MatchobUserPoolClient:
-    Type: AWS::Cognito::UserPoolClient
+  ResumesStack:
+    Type: AWS::Serverless::Application
     Properties:
-      UserPoolId: !Ref MatchobUserPool
-      ClientName: matchob-frontend
-      GenerateSecret: false
-      AllowedOAuthFlowsUserPoolClient: true
-      AllowedOAuthFlows:
-        - code
-      AllowedOAuthScopes:
-        - openid
-        - email
-        - profile
-      CallbackURLs:
-        - http://localhost:3000/auth/callback
-      LogoutURLs:
-        - http://localhost:3000/
-      SupportedIdentityProviders:
-        - COGNITO
+      Location: templates/s3-template.yaml
+      Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
+        UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
+        UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
 
-  # API Gateway with Cognito authorization
-  MatchobApi:
-    Type: AWS::Serverless::Api
+  BedrockStack:
+    Type: AWS::Serverless::Application
     Properties:
-      StageName: dev
-      Auth:
-        DefaultAuthorizer: CognitoAuthorizer
-        Authorizers:
-          CognitoAuthorizer:
-            UserPoolArn: !GetAtt MatchobUserPool.Arn
-
-  # Lambda for GET /profile
-  GetProfileFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      CodeUri: src/get-profile/
-      Handler: app.lambda_handler
-
-      Policies:
-        - DynamoDBReadPolicy:
-            TableName: !Ref MatchobUsersTable
-
-      Events:
-        GetProfile:
-          Type: Api
-          Properties:
-            RestApiId: !Ref MatchobApi
-            Path: /profile
-            Method: get
-  MatchobUserPoolDomain:
-    Type: AWS::Cognito::UserPoolDomain
-    Properties:
-      Domain: matchob-dev-backend
-      UserPoolId: !Ref MatchobUserPool
-  SharedLayer:
-    Type: AWS::Serverless::LayerVersion
-    Properties:
-      LayerName: matchob-shared
-      ContentUri: src/shared
-      CompatibleRuntimes:
-        - python3.13
-    Metadata:
-      BuildMethod: python3.13
+      Location: templates/bedrock-template.yaml
+      Parameters:
+        UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
+        BedrockModelResourceArns: !Join [",", !Ref BedrockModelResourceArns]
+        PromptArn: !Ref PromptArn
+        GuardrailId: !Ref GuardrailId
+        GuardrailVersion: !Ref GuardrailVersion
 
 Outputs:
   UserPoolId:
-    Value: !Ref MatchobUserPool
-
+    Value: !GetAtt SharedStack.Outputs.UserPoolId
   UserPoolClientId:
-    Value: !Ref MatchobUserPoolClient
-
-  ApiUrl:
-    Value: !Sub "https://${MatchobApi}.execute-api.${AWS::Region}.amazonaws.com/dev/profile"
+    Value: !GetAtt SharedStack.Outputs.UserPoolClientId
+  ProfileApiUrl:
+    Value: !GetAtt ProfileStack.Outputs.ApiUrl
+  ResumesApiUrl:
+    Value: !GetAtt ResumesStack.Outputs.ApiUrl
+  SuggestionsApiUrl:
+    Value: !GetAtt BedrockStack.Outputs.ApiUrl

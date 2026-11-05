@@ -1,0 +1,19 @@
+Backend Developer Intern - Northpeak Systems
+
+About the role
+Our platform team builds the APIs that power our mobile apps. As an intern you will help design and ship real endpoints with guidance from the team.
+
+Requirements
+- Experience writing REST APIs in Python
+- Comfortable working with relational databases like PostgreSQL
+- Able to write unit tests for your code
+- Experience using Git and pull requests
+
+Nice to have
+- Familiarity with Docker
+- Exposure to AWS or another cloud provider
+- Experience with FastAPI or Flask
+
+Benefits
+- Paid internship
+- Flexible remote schedule

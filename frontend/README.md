@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-WXT opens Chrome with the extension loaded. Click the Matchob extension icon to open the popup. `Get Started`, `Back`, and `Next` navigate the preview screens. The Resume Vault and upload button are placeholders, not working flows. On Windows PowerShell, use `npm.cmd` in place of `npm` if script execution is disabled.
+WXT opens Chrome with the extension loaded. Click the Matchob extension icon to open the popup. `Get Started`, `Back`, and `Next` navigate the preview screens. The Resume Vault includes a PDF picker and drag-and-drop upload preview; uploads appear while the Vault screen stays open but are not saved to a backend. On Windows PowerShell, use `npm.cmd` in place of `npm` if script execution is disabled.
 
 ## Load and test in Chrome
 
@@ -27,7 +27,7 @@ For a manual check without the development runner:
 1. Run `npm run build` from `frontend/`.
 2. Open `chrome://extensions` in Chrome and turn on **Developer mode**.
 3. Click **Load unpacked** and select `frontend/.output/chrome-mv3/`.
-4. Pin Matchob from Chrome's extensions menu, then click its icon. Click **Get Started** to see the Resume Vault placeholder.
+4. Pin Matchob from Chrome's extensions menu, then click its icon. Click **Get Started** to see the Resume Vault and upload preview.
 
 After rebuilding, click **Reload** on the Matchob card in `chrome://extensions` to see the new build.
 

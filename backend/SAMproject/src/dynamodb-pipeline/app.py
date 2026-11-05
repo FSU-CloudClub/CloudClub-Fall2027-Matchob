@@ -1,101 +1,206 @@
-import os                                                           # env vars
-import boto3                                                        # AWS SDK
-from botocore.exceptions import ClientError                         # AWS error type
-from aws_lambda_powertools import Logger                            # structured JSON logger
-from aws_lambda_powertools.event_handler import APIGatewayRestResolver  # router for API Gateway REST events
-from aws_lambda_powertools.logging import correlation_paths         # where to find the request ID
-from aws_lambda_powertools.utilities.typing import LambdaContext    # type hint for context
-from matchob_common.auth import get_user_id                         # shared auth helper (layer)
+import os
 
-# 1. Clients: once per container, reused while warm
-dynamodb = boto3.resource("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT") or None)  # local or AWS
-table = dynamodb.Table(os.environ["USERS_TABLE"])                   # our table
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
+from aws_lambda_powertools import Logger
+from aws_lambda_powertools.event_handler import APIGatewayRestResolver, Response
+from aws_lambda_powertools.logging import correlation_paths
+from aws_lambda_powertools.utilities.typing import LambdaContext
+from matchob_common.auth import get_user_id
+from matchob_common.http import read_json_body, to_json
+from matchob_common.validators import validate_fields
+from profile_helpers import PROFILE_FIELDS, profile_exists
 
-# 2. Powertools objects
-logger = Logger()                                                   # service name from POWERTOOLS_SERVICE_NAME
-app = APIGatewayRestResolver()                                      # matches method + path to a function
+dynamodb = boto3.resource("dynamodb", endpoint_url=os.environ.get("DYNAMODB_ENDPOINT") or None)
+table = dynamodb.Table(os.environ["USERS_TABLE"])
+s3 = boto3.client("s3", endpoint_url=os.environ.get("S3_ENDPOINT") or None)
+BUCKET = os.environ["UPLOAD_BUCKET"]
+
+logger = Logger()
+app = APIGatewayRestResolver(serializer=to_json)
 
 
-# 3. Routes: one function per method + path
-@app.get("/profile")                                                # handles GET /profile
+@app.exception_handler([BotoCoreError, ClientError])
+def handle_aws_failure(error):
+    """Handle transport errors and failed follow-up reads without private details."""
+    logger.error("profile AWS operation failed")
+    return Response(
+        status_code=500, content_type="application/json",
+        body=to_json({"error": "Internal server error"}),
+    )
+
+
+@app.get("/profile")
 def get_profile():
-    user_id = get_user_id(app.current_event.raw_event)              # Cognito sub (or X-Local-User locally)
-    if not user_id:                                                 # not authenticated
-        return {"error": "Unauthorized"}, 401                       # (body, status) tuple
+    """GET /profile: return the signed-in user's profile.
+
+    Responses:
+        200: The profile object.
+        401: No authenticated user.
+        404: The user has no profile yet.
+        500: DynamoDB error.
+    """
+    user_id = get_user_id(app.current_event.raw_event)
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
 
     try:
-        response = table.get_item(Key={"userId": user_id} )  # read profile
+        response = table.get_item(Key={"userId": user_id})
     except ClientError:
-        logger.exception("dynamodb get_item failed")                # logs the stack trace as JSON
-        return {"error": "Internal server error"}, 500              # generic message to the client
+        logger.error("dynamodb get_item failed")
+        return {"error": "Internal server error"}, 500
 
-    if response is None:                                                # no profile yet
+    item = response.get("Item")
+    if item is None:
         return {"error": "Profile not found"}, 404
 
-    logger.info("profile fetched", extra={"user_id": user_id})      # extra = searchable fields
-    return response                                                     # plain dict → 200 + JSON body
+    logger.info("profile fetched", extra={"user_id": user_id})
+    return item
 
-# 4. Entry point: always exactly this
-@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST)  # adds request ID, cold_start to logs
+
+@app.post("/profile")
+def create_user():
+    """POST /profile: create the signed-in user's profile.
+
+    Body: every REQUIRED field in PROFILE_FIELDS; websites and defaultResume
+    are optional. The backend adds userId, resumes ({}) and
+    structuredJsonResume (null).
+
+    Responses:
+        201: The created profile object.
+        400: Invalid JSON, a missing, invalid or unknown field, or a
+            defaultResume (a new profile has no resumes yet).
+        401: No authenticated user.
+        409: The user already has a profile.
+        500: DynamoDB error.
+    """
+    user_id = get_user_id(app.current_event.raw_event)
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+
+    body, error = read_json_body(app.current_event)
+    if error:
+        return {"error": error}, 400
+
+    fields, error = validate_fields(body, PROFILE_FIELDS, partial=False)
+    if error:
+        return {"error": error}, 400
+    if fields["defaultResume"] is not None:
+        return {"error": "defaultResume must be one of your resumes"}, 400
+
+    item = {"userId": user_id, **fields, "resumes": {}, "structuredJsonResume": None}
+    try:
+        table.put_item(
+            Item=item,
+            ConditionExpression="attribute_not_exists(userId)",
+        )
+    except ClientError as error:
+        if error.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            return {"error": "Profile already exists"}, 409
+        logger.error("dynamodb put_item failed")
+        return {"error": "Internal server error"}, 500
+
+    logger.info("profile created", extra={"user_id": user_id})
+    return item, 201
+
+
+@app.put("/profile")
+def put_profile():
+    """PUT /profile: update some or all fields of the signed-in user's profile.
+
+    Body: any non-empty subset of PROFILE_FIELDS. Fields that are not sent
+    keep their current values. A non-null defaultResume must be a key of
+    the profile's resumes.
+
+    Responses:
+        200: The full updated profile object.
+        400: Invalid JSON, an invalid or unknown field, no fields sent, or a
+            defaultResume that isn't one of the user's resumes.
+        401: No authenticated user.
+        404: The user has no profile yet.
+        500: DynamoDB error.
+    """
+    user_id = get_user_id(app.current_event.raw_event)
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+
+    body, error = read_json_body(app.current_event)
+    if error:
+        return {"error": error}, 400
+
+    updates, error = validate_fields(body, PROFILE_FIELDS, partial=True)
+    if error:
+        return {"error": error}, 400
+
+    names = {f"#{k}": k for k in updates}
+    condition = "attribute_exists(userId)"
+    default_resume = updates.get("defaultResume")
+    if default_resume is not None:
+        names.update({"#resumes": "resumes", "#defaultResumeId": default_resume})
+        condition += " AND attribute_exists(#resumes.#defaultResumeId)"
+
+    try:
+        result = table.update_item(
+            Key={"userId": user_id},
+            UpdateExpression="SET " + ", ".join(f"#{k} = :{k}" for k in updates),
+            ExpressionAttributeNames=names,
+            ExpressionAttributeValues={f":{k}": v for k, v in updates.items()},
+            ConditionExpression=condition,
+            ReturnValues="ALL_NEW",
+        )
+    except ClientError as error:
+        if error.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            logger.error("dynamodb update_item failed")
+            return {"error": "Internal server error"}, 500
+        if default_resume is not None and profile_exists(table, user_id):
+            return {"error": "defaultResume must be one of your resumes"}, 400
+        return {"error": "Profile not found"}, 404
+
+    logger.info("profile updated", extra={"user_id": user_id})
+    return result["Attributes"], 200
+
+
+@app.delete("/profile")
+def delete_user():
+    """DELETE /profile: delete the signed-in user's profile and stored resumes.
+
+    Responses:
+        200: {"message": "Profile deleted"}.
+        401: No authenticated user.
+        404: The user has no profile.
+        500: DynamoDB or S3 cleanup error.
+    """
+    user_id = get_user_id(app.current_event.raw_event)
+    if not user_id:
+        return {"error": "Unauthorized"}, 401
+
+    try:
+        item = table.delete_item(
+            Key={"userId": user_id},
+            ReturnValues="ALL_OLD",
+        ).get("Attributes")
+    except ClientError:
+        logger.error("dynamodb delete_item failed")
+        return {"error": "Internal server error"}, 500
+
+    if item is None:
+        return {"error": "Profile not found"}, 404
+
+    cleanup_failed = False
+    for resume in item.get("resumes", {}).values():
+        try:
+            s3.delete_object(Bucket=BUCKET, Key=resume["s3Key"])
+        except (ClientError, BotoCoreError):
+            logger.error("s3 resume deletion failed", extra={"user_id": user_id})
+            cleanup_failed = True
+    if cleanup_failed:
+        return {"error": "Internal server error"}, 500
+
+    logger.info("profile deleted", extra={"user_id": user_id})
+    return {"message": "Profile deleted"}
+
+
+# Never log request bodies, even if POWERTOOLS_LOGGER_LOG_EVENT is enabled.
+@logger.inject_lambda_context(correlation_id_path=correlation_paths.API_GATEWAY_REST, log_event=False)
 def lambda_handler(event: dict, context: LambdaContext) -> dict:
-    return app.resolve(event, context)                              # run the matching route
-
-# import json
-# import os
-# import boto3
-# from botocore.exceptions import ClientError
-# from matchob_common.auth import get_user_id
-
-# # Initialize DynamoDB outside the handler
-# dynamodb = boto3.resource(
-#     "dynamodb",
-#     endpoint_url=os.environ.get("DYNAMODB_ENDPOINT") or None
-# )
-
-# table = dynamodb.Table(os.environ["USERS_TABLE"])
-
-
-# def lambda_handler(event, context):
-#     print("USERS_TABLE:", os.environ.get("USERS_TABLE"))
-#     print("DYNAMODB_ENDPOINT:", os.environ.get("DYNAMODB_ENDPOINT"))
-#     # Extract authenticated user ID
-#     # Extract authenticated user ID (claims in AWS, X-Local-User header under sam local)
-#     user_id = get_user_id(event)
-
-
-#     if not user_id:
-#         return {
-#             "statusCode": 401,
-#             "body": json.dumps({"error": "Unauthorized"})
-#         }
-
-#     try:
-#         # Retrieve profile from DynamoDB
-#         response = table.get_item(
-#             Key={"userId": user_id}
-#         )
-
-#         profile = response.get("Item")
-
-#         if profile is None:
-#             return {
-#                 "statusCode": 404,
-#                 "body": json.dumps({
-#                     "error": "Profile not found"
-#                 })
-#             }
-
-#         return {
-#             "statusCode": 200,
-#             "headers": {
-#                 "Content-Type": "application/json"
-#             },
-#             "body": json.dumps(profile, default=str)
-#         }
-
-#     except ClientError as e:
-#         print("DynamoDB ClientError:", repr(e))
-#         return {
-#             "statusCode": 500,
-#             "body": json.dumps({"error": "Internal server error"})
-#         }
+    return app.resolve(event, context)

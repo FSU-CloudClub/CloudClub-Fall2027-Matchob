@@ -1,0 +1,45 @@
+:root { --dropzone-hover: #25231e0f; }
+:root[data-theme='dark'] { --dropzone-hover: #ffffff14; }
+
+.resume-upload { display: grid; gap: 8px; margin-top: 12px; }
+
+.resume-upload__dropzone {
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 120px;
+  padding: 24px 16px;
+  border: 1px dashed var(--glass-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease;
+}
+.resume-upload__dropzone:hover,
+.resume-upload__dropzone--dragging { border-color: var(--glass-gold-border); background: var(--dropzone-hover); }
+.resume-upload__dropzone:focus-visible { outline: 2px solid var(--eyebrow); outline-offset: 2px; }
+.resume-upload__dropzone:disabled { cursor: default; }
+
+.resume-upload__title { color: var(--text); font-size: 18px; font-weight: 500; }
+.resume-upload__action { color: var(--glass-gold-text); font-size: 13px; }
+.resume-upload__dropzone:hover .resume-upload__action { text-decoration: underline; }
+.resume-upload__uploading { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; }
+
+.resume-upload .resume-upload__error { color: #a43b2f; }
+:root[data-theme='dark'] .resume-upload .resume-upload__error { color: #ffa294; }
+
+.resume-upload__spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--card-line);
+  border-top-color: var(--eyebrow);
+  border-radius: 50%;
+  animation: resume-upload-spin .7s linear infinite;
+}
+@keyframes resume-upload-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .resume-upload__spinner { animation: none; } }

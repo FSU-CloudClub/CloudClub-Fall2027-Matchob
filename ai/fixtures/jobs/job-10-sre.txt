@@ -1,0 +1,20 @@
+Site Reliability Engineer - Meridian Payments
+
+About the role
+We process payments that have to work every second of every day. You will keep our systems reliable, reduce toil through automation, and improve our on-call experience.
+
+Requirements
+- 4+ years running large-scale production systems
+- Deep experience with Linux and networking
+- Experience with Kubernetes in production
+- Proficiency writing automation in Python or Go
+- Experience defining SLOs and monitoring reliability
+
+Nice to have
+- Experience with Terraform
+- Familiarity with distributed tracing
+- Exposure to incident command processes
+
+Benefits
+- Competitive salary and equity
+- Generous on-call compensation

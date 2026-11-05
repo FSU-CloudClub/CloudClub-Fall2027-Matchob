@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Shared resources - Cognito and the common Lambda layer
+
+Resources:
+  MatchobUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: matchob-dev-users
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+
+  MatchobUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref MatchobUserPool
+      ClientName: matchob-frontend
+      GenerateSecret: false
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      CallbackURLs:
+        - http://localhost:3000/auth/callback
+      LogoutURLs:
+        - http://localhost:3000/
+      SupportedIdentityProviders:
+        - COGNITO
+
+  MatchobUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: matchob-dev-backend
+      UserPoolId: !Ref MatchobUserPool
+
+Outputs:
+  UserPoolArn:
+    Value: !GetAtt MatchobUserPool.Arn
+  UserPoolId:
+    Value: !Ref MatchobUserPool
+  UserPoolClientId:
+    Value: !Ref MatchobUserPoolClient

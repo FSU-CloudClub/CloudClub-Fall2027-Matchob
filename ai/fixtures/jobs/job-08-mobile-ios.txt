@@ -1,0 +1,20 @@
+iOS Developer - Tidepool Mobile
+
+About the role
+We build a wellness app loved by half a million users. You will own features in our iOS app from design review to release on the App Store.
+
+Requirements
+- 2+ years building iOS apps with Swift
+- Experience with the UIKit or SwiftUI frameworks
+- Comfortable consuming REST APIs from a mobile client
+- Experience shipping apps to the App Store
+- Able to write unit tests with XCTest
+
+Nice to have
+- Familiarity with Core Data
+- Experience with Combine
+- Exposure to accessibility on iOS
+
+Benefits
+- Competitive salary and equity
+- New device every two years

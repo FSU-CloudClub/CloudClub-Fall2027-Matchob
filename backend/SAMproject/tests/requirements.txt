@@ -1,5 +1,3 @@
 pytest
 boto3
-requests
-PyJWT
-cryptography
+aws-lambda-powertools

@@ -1,0 +1,20 @@
+Machine Learning Engineer - Lumen AI
+
+About the role
+We build models that help doctors review medical images faster. You will take research models and turn them into reliable production services.
+
+Requirements
+- Strong Python skills for building ML pipelines
+- Experience training models with PyTorch or TensorFlow
+- Solid understanding of machine learning fundamentals
+- Experience deploying models as production services
+- Comfortable working with large datasets
+
+Nice to have
+- Experience with MLflow for experiment tracking
+- Familiarity with Docker and Kubernetes
+- Exposure to cloud GPUs on AWS or GCP
+
+Benefits
+- Competitive salary and equity
+- Conference travel budget

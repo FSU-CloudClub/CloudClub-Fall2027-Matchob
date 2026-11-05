@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Analysis",
+  "type": "object",
+  "required": [
+    "requirements",
+    "recommendations",
+    "resume_text",
+    "job_text"
+  ],
+  "properties": {
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "resume_text": {
+      "type": "string"
+    },
+    "job_text": {
+      "type": "string"
+    }
+  }
+}

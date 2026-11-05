@@ -5,14 +5,18 @@ import type { Resume } from "../../types";
 type ResumeTagsRenameProps = {
   resume: Resume;
   onSave: (updatedResume: Resume) => void;
+  onCancel?: () => void;
+  initialEditing?: boolean;
 };
 
 export function ResumeTagsRename({
   resume,
   onSave,
+  onCancel,
+  initialEditing = false,
 }: ResumeTagsRenameProps) {
 
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(initialEditing);
   const [name, setName] = useState(resume.name);
   const [tags, setTags] = useState<string[]>(resume.tags);
   const [newTag, setNewTag] = useState("");
@@ -34,6 +38,7 @@ function cancelChanges() {
   setTags([...resume.tags]); 
   setNewTag(""); 
   setEditing(false); 
+  onCancel?.();
 }
 
 function addTag() {
@@ -82,9 +87,9 @@ function removeTag(tagToRemove: string) {
       </div>
     ) : (
       <div>
-        <label className="resume-input" htmlFor="resume-name">Resume Name:</label>
+        <label className="resume-input" htmlFor={`resume-name-${resume.id}`}>Resume Name:</label>
         <input
-          id="resume-name"
+          id={`resume-name-${resume.id}`}
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}

@@ -1,0 +1,37 @@
+Alex Rivera
+alex@example.com | 850-555-0142 | North Harbor, FL
+
+EDUCATION
+North Harbor State University, North Harbor, FL
+B.S. in Computer Science, expected May 2028; Minor in Mathematics
+GPA 3.6; Dean's List Fall 2025 and Spring 2026
+Relevant coursework: Data Structures, Databases, Software Engineering, Algorithms
+Activities: NHSU Coders Club (member), Hack Night volunteer
+Honors: NHSU Merit Scholarship, 2024 - Present
+
+EXPERIENCE
+Junior Web Developer, Oakline Print Shop, Jan 2026 - Present
+- Rebuilt the online order form in React and reduced page load time by 30% by compressing images and splitting code.
+- Built an AWS Lambda function that emails customers a proof of their order within a minute of checkout.
+- Fixed 12 front-end bugs reported by staff and added tests for the order form.
+Data Assistant, Campus Survey Office, Aug 2025 - Dec 2025
+- Wrote Python scripts to clean survey data for a campus office, cutting manual work by 5 hours a week.
+- Helped migrate weekly reports from Excel to SQL.
+- Documented the report steps so new student workers could run them alone.
+
+PROJECTS
+Course Planner Web App (Flask, React, PostgreSQL), Mar 2026
+- Built an app that lets students drag classes into a four-year plan and flags missing prerequisites.
+- Set up automated deployments with GitHub Actions so every merge to main goes live after tests pass.
+- Wrote 25 unit tests for the planning rules using pytest.
+Library Book Tracker (Java, SQLite), Nov 2025
+- Created a command-line tool that tracks borrowed books and due dates.
+- Added search by title, author and subject with simple text matching.
+- Stored all records in a SQLite file so data survives restarts.
+Weather Dashboard (JavaScript, HTML, CSS), Jun 2025
+- Built a one-page site that shows a five-day forecast from a public weather API.
+- Added a dark mode toggle and saved the choice in the browser.
+- Cached responses for ten minutes to stay under the API request limit.
+
+SKILLS
+Python, JavaScript, React, Java, SQL, PostgreSQL, SQLite, HTML, CSS, Flask, pytest, Git, GitHub Actions, AWS Lambda, Linux
