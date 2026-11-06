@@ -1,7 +1,7 @@
 
 # Standalone suggestion generator from the original AI plan.
-# The live application uses Backend's Bedrock console prompt instead.
-# Kept for possible future Python checks on live replies.
+# Not used by the live app, instead Backend calls the Bedrock console prompt directly.
+# Kept for possible future Python checks on live replies and original bullets.
 
 import json
 import re
@@ -79,8 +79,7 @@ def suggest(requirements: list[dict], lines: dict, model) -> list[dict]:
         candidates[rid] = [
             _candidate_text(value) for value in values
         ]
-
-    # Package all requirements into one model call to reduce latency.
+    # Build the input data for the model.
     payload = {
         "requirements": requirements,
         "lines": candidates
