@@ -40,7 +40,7 @@ class UpdateResumeTests(unittest.TestCase):
         self.module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.module)
         self.info = self.enterContext(patch.object(self.module.logger, "info"))
-        self.exception = self.enterContext(patch.object(self.module.logger, "exception"))
+        self.error = self.enterContext(patch.object(self.module.logger, "error"))
         self.signer = self.clients.return_value.generate_presigned_url
         self.signer.return_value = "https://example.test/signed-download"
         self.stored = {
@@ -132,7 +132,7 @@ class UpdateResumeTests(unittest.TestCase):
                 self.info.assert_called_once_with("resume updated", extra={
                     "user_id": "user-123", "resume_id": "resume-456", "fields": list(cleaned),
                 })
-                self.exception.assert_not_called()
+                self.error.assert_not_called()
 
     def test_invalid_input(self):
         cases = [
@@ -182,18 +182,18 @@ class UpdateResumeTests(unittest.TestCase):
         self.assertEqual(self.table.update_item.call_args.kwargs["Key"], {"userId": "user-123"})
         self.signer.assert_not_called()
         self.info.assert_not_called()
-        self.exception.assert_not_called()
+        self.error.assert_not_called()
 
     def test_unexpected_dynamodb_errors(self):
         for code in ["ValidationException", "AccessDeniedException", "InternalServerError"]:
             with self.subTest(code=code):
-                self.exception.reset_mock()
+                self.error.reset_mock()
                 self.table.update_item.side_effect = ClientError({"Error": {
                     "Code": code, "Message": "private details",
                 }}, "UpdateItem")
                 self.assertEqual(self.invoke({"tags": []}),
                                  (500, {"error": "Internal server error"}))
-                self.exception.assert_called_once_with("dynamodb update_item failed")
+                self.error.assert_called_once_with("dynamodb update_item failed")
                 self.signer.assert_not_called()
                 self.info.assert_not_called()
 

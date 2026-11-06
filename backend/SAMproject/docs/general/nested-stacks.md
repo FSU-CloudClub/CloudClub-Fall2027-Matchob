@@ -12,7 +12,7 @@ templates/
 ├── shared-template.yaml          Cognito user pool, app client, hosted login domain
 ├── dynamodb-template.yaml        profile service: users table, profile API, ProfileFunction
 ├── s3-template.yaml              resumes service: upload bucket, resumes API, ResumesFunction
-└── bedrock-template.yaml         AI service: BedrockFunction (no API yet)
+└── bedrock-template.yaml         AI service: BedrockApi, BedrockFunction
 src/
 ├── shared/matchob_common/        shared layer code (see shared-helpers.md)
 ├── dynamodb-pipeline/            ProfileFunction code
@@ -25,11 +25,11 @@ flowchart LR
     Root["template.yaml"] --> Shared["SharedStack<br/>Cognito"]
     Root --> Profile["ProfileStack<br/>users table + /profile"]
     Root --> Resumes["ResumesStack<br/>bucket + /resumes"]
-    Root --> Bedrock["BedrockStack"]
+    Root --> Bedrock["BedrockStack<br/>/suggestions"]
     Shared -- UserPoolArn --> Profile
     Shared -- UserPoolArn --> Resumes
     Profile -- UsersTableName --> Resumes
-    Profile -- UsersTableName --> Bedrock
+    Shared -- UserPoolArn --> Bedrock
 ```
 
 ## How values move between stacks
@@ -46,7 +46,7 @@ A child template declares what it needs under `Parameters:` and what it shares u
         UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
 ```
 
-The root has no `Parameters:` section of its own.
+The root's own `Parameters:` are only for values that come from outside CloudFormation: the Bedrock console's `PromptArn`, `GuardrailId` and `GuardrailVersion`. They're set with `parameter_overrides` in `samconfig.toml` and passed to `BedrockStack` with `!Ref`.
 
 ## Rules that aren't obvious
 

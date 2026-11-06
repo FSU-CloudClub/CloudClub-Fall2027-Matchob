@@ -1,4 +1,8 @@
-"""POST /profile tests through the Lambda entry point; no AWS calls are made."""
+"""POST /profile contract, including Meeting 4's removal of defaultResume.
+
+Exercise the real Lambda entry point with AWS clients mocked. Expected fields
+come from docs/general/api-contracts.md, not from the implementation's schema.
+"""
 
 import importlib.util
 import json
@@ -36,7 +40,7 @@ def endpoint(monkeypatch):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     context = SimpleNamespace(
-        function_name="GetProfileFunction",
+        function_name="CreateUserFunction",
         memory_limit_in_mb=128,
         invoked_function_arn="arn:aws:lambda:us-east-1:123456789012:function:test",
         aws_request_id="test-request",
@@ -73,7 +77,6 @@ def test_creates_profile_using_authenticated_id(endpoint, valid_profile):
         "userId": "user-123",
         **valid_profile,
         "websites": [],
-        "defaultResume": None,
         "resumes": {},
         "structuredJsonResume": None,
     }
@@ -84,10 +87,26 @@ def test_creates_profile_using_authenticated_id(endpoint, valid_profile):
     )
 
 
-def test_rejects_client_supplied_user_id(endpoint, valid_profile):
+@pytest.mark.parametrize("field,value", [
+    ("userId", "another-user"),
+    ("resumes", {}),
+    ("structuredJsonResume", None),
+    ("name", "Legacy Name"),
+    ("unexpected", "value"),
+])
+def test_rejects_backend_only_and_unknown_fields(endpoint, valid_profile, field, value):
     invoke, table = endpoint
-    payload = {**valid_profile, "userId": "another-user"}
-    assert invoke(json.dumps(payload)) == (400, {"error": "Unknown fields: userId"})
+    payload = {**valid_profile, field: value}
+    assert invoke(json.dumps(payload)) == (400, {"error": f"Unknown fields: {field}"})
+    table.put_item.assert_not_called()
+
+
+@pytest.mark.parametrize("value", [None, "resume-123", "", 42, {}])
+def test_rejects_removed_default_resume_field(endpoint, valid_profile, value):
+    invoke, table = endpoint
+    assert invoke(json.dumps({**valid_profile, "defaultResume": value})) == (
+        400, {"error": "Unknown fields: defaultResume"}
+    )
     table.put_item.assert_not_called()
 
 
@@ -161,7 +180,12 @@ def test_dynamodb_errors(endpoint, valid_profile, code, status, message):
     ("year", "invalid", "year must be one of: freshman, sophomore, junior, senior, graduate"),
     ("websites", "https://example.com", "websites must be a list of URLs"),
     ("websites", ["invalid"], "websites must be a list of URLs starting with http:// or https://"),
-    ("defaultResume", "resume-123", "defaultResume must be one of your resumes"),
+    ("age", None, "age must be a whole number from 13 to 120"),
+    ("year", None, "year must be one of: freshman, sophomore, junior, senior, graduate"),
+    ("year", "Junior", "year must be one of: freshman, sophomore, junior, senior, graduate"),
+    ("websites", None, "websites must be a list of URLs"),
+    ("websites", [42], "websites must be a list of URLs starting with http:// or https://"),
+    ("websites", ["ftp://example.com"], "websites must be a list of URLs starting with http:// or https://"),
 ])
 def test_invalid_profile_values(endpoint, valid_profile, field, value, message):
     invoke, table = endpoint
@@ -170,17 +194,27 @@ def test_invalid_profile_values(endpoint, valid_profile, field, value, message):
 
 
 @pytest.mark.parametrize("age", [13, 120])
-def test_accepts_age_boundaries_and_optional_fields(endpoint, valid_profile, age):
+@pytest.mark.parametrize("year", ["freshman", "sophomore", "junior", "senior", "graduate"])
+def test_accepts_age_boundaries_years_and_websites(endpoint, valid_profile, age, year):
     invoke, table = endpoint
     payload = {
         **valid_profile,
         "age": age,
-        "websites": ["  https://example.com  "],
-        "defaultResume": None,
+        "year": year,
+        "websites": ["  https://example.com  ", "http://example.org"],
     }
     status, body = invoke(json.dumps(payload))
     assert status == 201
-    assert body["age"] == age
-    assert body["websites"] == ["https://example.com"]
-    assert body["defaultResume"] is None
-    assert table.put_item.call_args.kwargs["Item"] == body
+    expected = {
+        "userId": "user-123",
+        **valid_profile,
+        "age": age,
+        "year": year,
+        "websites": ["https://example.com", "http://example.org"],
+        "resumes": {},
+        "structuredJsonResume": None,
+    }
+    assert body == expected
+    table.put_item.assert_called_once_with(
+        Item=expected, ConditionExpression="attribute_not_exists(userId)"
+    )
