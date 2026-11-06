@@ -1,5 +1,7 @@
 
-# Draft resume recommendations. Final evidence status belongs to guardrails.
+# Standalone suggestion generator from the original AI plan.
+# The live application uses Backend's Bedrock console prompt instead.
+# Kept for possible future Python checks on live replies.
 
 import json
 import re

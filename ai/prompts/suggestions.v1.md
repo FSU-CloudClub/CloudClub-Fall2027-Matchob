@@ -105,6 +105,7 @@ Supporting context:
 
 ### Reply format:
 - Return ONLY valid JSON with this exact shape:
+- Number the IDs "1", "2", "3" in order, as strings.
 
 <!-- Example of the response structure expected by Backend. Each suggestion contains an ID, a rewritten resume bullet, and a reason explaining its relevance to the job posting. -->
 
@@ -112,9 +113,9 @@ Supporting context:
 {
   "suggestions": [
     {
-      "id": "s1",
-      "suggestion": "Built a React user interface for the online order form, reducing page load time by 30%.",
-      "reason": "This rewrite highlights React and frontend performance work that matches the job posting."
+      "id": "1",
+      "suggestion": "Built a React user interface for the online order form.",
+      "reason": "Highlights existing React experience relevant to the job posting."
     }
   ]
 }
