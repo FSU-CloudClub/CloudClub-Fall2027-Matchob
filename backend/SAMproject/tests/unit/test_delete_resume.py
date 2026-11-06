@@ -85,24 +85,13 @@ def test_s3_failure_keeps_success_after_metadata_deleted(endpoint):
     assert invoke(endpoint)["statusCode"] == 200
 
 
-@pytest.mark.parametrize("code", [None, "ConditionalCheckFailedException", "InternalServerError"])
-def test_default_cleanup_is_conditional_and_best_effort(endpoint, code):
-    old = endpoint.table.update_item.return_value
-    old["Attributes"]["defaultResume"] = "resume-1"
-    endpoint.table.update_item.side_effect = [old, error(code) if code else {}]
-    assert invoke(endpoint)["statusCode"] == 200
-    assert endpoint.table.update_item.call_count == 2
-    cleanup = endpoint.table.update_item.call_args.kwargs
-    assert cleanup["Key"] == {"userId": "owner"}
-    assert cleanup["ConditionExpression"] == "#defaultResume = :resumeId"
-    assert cleanup["ExpressionAttributeValues"] == {":null": None, ":resumeId": "resume-1"}
-    endpoint.s3.delete_object.assert_called_once()
-
-
-def test_other_default_is_unchanged(endpoint):
-    endpoint.table.update_item.return_value["Attributes"]["defaultResume"] = "another-resume"
+@pytest.mark.parametrize("legacy_default", ["resume-1", "another-resume", None])
+def test_delete_uses_one_write_even_with_legacy_default(endpoint, legacy_default):
+    endpoint.table.update_item.return_value["Attributes"]["defaultResume"] = legacy_default
     assert invoke(endpoint)["statusCode"] == 200
     endpoint.table.update_item.assert_called_once()
+    endpoint.s3.delete_object.assert_called_once_with(
+        Bucket="TestUploads", Key="users/owner/resumes/resume-1.pdf")
 
 
 @pytest.mark.parametrize("resume_id", ["bad id", "bad.id", "x" * 129, "bad%20id"])
@@ -130,11 +119,3 @@ def test_unexpected_database_failures_return_safe_json(endpoint, failure):
 def test_s3_transport_failure_is_best_effort(endpoint, failure):
     endpoint.s3.delete_object.side_effect = failure
     assert invoke(endpoint)["statusCode"] == 200
-
-
-def test_default_cleanup_transport_failure_still_deletes_file(endpoint):
-    old = endpoint.table.update_item.return_value
-    old["Attributes"]["defaultResume"] = "resume-1"
-    endpoint.table.update_item.side_effect = [old, EndpointConnectionError(endpoint_url="local")]
-    assert invoke(endpoint)["statusCode"] == 200
-    endpoint.s3.delete_object.assert_called_once()
