@@ -76,7 +76,6 @@ resumes:                                           users/abc/resumes/9a1d....doc
   "3f6c...": {s3Key, name, tags,
               contentType, uploadedAt}
   "9a1d...": {...}
-defaultResume: "3f6c..."
 ```
 
 - **Key format:** `users/<userId>/resumes/<resumeId>.<pdf|docx>`. The `userId` prefix keeps users' files apart and makes "delete everything for a user" one prefix.

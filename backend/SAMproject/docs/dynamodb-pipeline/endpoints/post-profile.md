@@ -9,11 +9,10 @@ Creates the signed-in user's profile. Called once, after sign-up.
 ## How it works
 1. `get_user_id(app.current_event.raw_event)`. `None` → 401.
 2. `read_json_body(app.current_event)`. Error → 400.
-3. `validate_fields(body, PROFILE_FIELDS, partial=False)`. Every `REQUIRED` field must be present; `websites` defaults to `[]` and `defaultResume` to `None`. Error → 400.
-4. If `fields["defaultResume"]` isn't `None` → 400. A new profile has no resumes, so no ID can be valid.
-5. Build the item: `{"userId": user_id, **fields, "resumes": {}, "structuredJsonResume": None}`. `userId` comes from the token, never the body.
-6. `table.put_item(Item=item, ConditionExpression="attribute_not_exists(userId)")`.
-7. Log `profile created` and return `item, 201`.
+3. `validate_fields(body, PROFILE_FIELDS, partial=False)`. Every `REQUIRED` field must be present; `websites` defaults to `[]`. Error → 400.
+4. Build the item: `{"userId": user_id, **fields, "resumes": {}, "structuredJsonResume": None}`. `userId` comes from the token, never the body.
+5. `table.put_item(Item=item, ConditionExpression="attribute_not_exists(userId)")`.
+6. Log `profile created` and return `item, 201`.
 
 ## Objects and calls
 
@@ -35,9 +34,8 @@ Creates the signed-in user's profile. Called once, after sign-up.
 | No user | 401 | `Unauthorized` | none |
 | Body isn't JSON | 400 | `Invalid JSON body` | none |
 | Any `validate_fields` failure | 400 | Its message, e.g. `lastname is required`, `Unknown fields: userId` | none |
-| `defaultResume` sent | 400 | `defaultResume must be one of your resumes` | none |
 | `ConditionalCheckFailedException` | 409 | `Profile already exists` | none |
-| Any other `ClientError` | 500 | `Internal server error` | `logger.exception("dynamodb put_item failed")` |
+| Any other `ClientError` | 500 | `Internal server error` | `logger.error("dynamodb put_item failed")` |
 
 ## Infrastructure
 None. The `CreateUser` event is in `templates/dynamodb-template.yaml`.

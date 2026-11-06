@@ -79,21 +79,6 @@ def delete_resume(resume_id):
 
     old = result["Attributes"]
     stored = old["resumes"][resume_id]
-    if old.get("defaultResume") == resume_id:
-        try:
-            table.update_item(
-                Key={"userId": user_id},
-                UpdateExpression="SET #defaultResume = :null",
-                ExpressionAttributeNames={"#defaultResume": "defaultResume"},
-                ExpressionAttributeValues={":null": None, ":resumeId": resume_id},
-                ConditionExpression="#defaultResume = :resumeId",
-            )
-        except ClientError as exc:
-            if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
-                logger.error("clear defaultResume failed")
-        except BotoCoreError:
-            logger.error("clear defaultResume request failed")
-
     try:
         s3.delete_object(Bucket=BUCKET, Key=stored["s3Key"])
     except (ClientError, BotoCoreError):
