@@ -24,7 +24,7 @@ from resume_helpers import (
     resume_path_names,
     s3_key,
     table,
-    to_resume_object,
+    to_resume_object,  # Builds the public resume fields and a temporary download link.
 )
 
 s3 = boto3.client(
@@ -79,21 +79,6 @@ def delete_resume(resume_id):
 
     old = result["Attributes"]
     stored = old["resumes"][resume_id]
-    if old.get("defaultResume") == resume_id:
-        try:
-            table.update_item(
-                Key={"userId": user_id},
-                UpdateExpression="SET #defaultResume = :null",
-                ExpressionAttributeNames={"#defaultResume": "defaultResume"},
-                ExpressionAttributeValues={":null": None, ":resumeId": resume_id},
-                ConditionExpression="#defaultResume = :resumeId",
-            )
-        except ClientError as exc:
-            if exc.response["Error"]["Code"] != "ConditionalCheckFailedException":
-                logger.error("clear defaultResume failed")
-        except BotoCoreError:
-            logger.error("clear defaultResume request failed")
-
     try:
         s3.delete_object(Bucket=BUCKET, Key=stored["s3Key"])
     except (ClientError, BotoCoreError):
@@ -148,19 +133,41 @@ def create_upload_url():
     return {"resumeId": resume_id, "uploadUrl": upload_url}, 201
 
 
+# GET /resumes runs when the frontend asks to display the user's resumes.
 @app.get("/resumes")
 def list_resumes():
-    """List only the caller's resumes, newest first, with fresh download URLs."""
+    """Return the caller's resumes, newest first, with fresh download links."""
+    # Started by Tommy before Task #2 was assigned to Nate; completed for Task #2.
+    # See docs/s3-pipeline/endpoints/list-resumes.md for the endpoint requirements.
+
+    # Identify the caller using their login information (or the local test header).
+    # Keep Tommy's check: requests without a user receive 401 (unauthorized).
     user_id = get_user_id(app.current_event.raw_event)
     if not user_id:
         return {"error": "Unauthorized"}, 401
 
-    resumes = get_resumes(user_id)
+    try:
+        resumes = get_resumes(user_id)
+    except ClientError:
+        logger.error("dynamodb get_item failed")
+        return {"error": "Internal server error"}, 500
+
     if resumes is None:
         return {"error": "Profile not found"}, 404
 
-    ordered = sorted(resumes.items(), key=lambda entry: entry[1]["uploadedAt"], reverse=True)
-    return [to_resume_object(resume_id, stored) for resume_id, stored in ordered]
+    sorted_resumes = sorted(
+        resumes.items(), key=lambda item: item[1]["uploadedAt"], reverse=True
+    )
+
+    result = []
+    for resume_id, stored in sorted_resumes:
+        result.append(to_resume_object(resume_id, stored))
+
+    logger.info(
+        "resumes listed",
+        extra={"user_id": user_id, "count": len(result)},
+    )
+    return result, 200
 
 
 @app.get("/resumes/<resume_id>/download-url")
@@ -183,14 +190,16 @@ def create_download_url(resume_id):
         stored = resumes[resume_id]
         url = presign_download(stored["s3Key"], stored["name"])
     except Exception:
-        # Includes SDK service/transport/signing failures and invalid stored data.
-        # Exception messages can contain private data; never log their contents.
+        # SDK service/transport/signing failures must not expose internals.
+        # Exception messages can contain private data; never log them.
         logger.error("resume download failed")
         return {"error": "Internal server error"}, 500
 
-    logger.info("resume download url created", extra={"user_id": user_id, "resume_id": resume_id})
+    logger.info(
+        "resume download url created",
+        extra={"user_id": user_id, "resume_id": resume_id},
+    )
     return {"downloadUrl": url, "expiresIn": URL_EXPIRES_IN}, 200
-
 
 @app.patch("/resumes/<resume_id>")                              # registers the PATCH endpoint for a specific resume
 def update_resume(resume_id):                                   # defines the function and receives the resume ID from the URL

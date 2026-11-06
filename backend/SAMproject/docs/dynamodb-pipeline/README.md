@@ -100,16 +100,9 @@ November 3, 2026: the Task 3 profile tests passed: **90 tests** (`tests/unit/tes
 
 ## Local SAM verification
 
-Historical verification before default-resume removal (includes behavior no longer supported): October 29, 2026: rebuilt the current source and ran `sam local start-api` on port 3001 with `env.json`, the `matchob-local` Docker network, DynamoDB Local and S3mock. **All 23 HTTP checks passed**, using two unique synthetic users:
+November 6, 2026: rebuilt the updated source and reran `sam local start-api` with DynamoDB Local and S3mock. All 22 endpoint checks plus S3 upload/download. Profile checks covered creation (201), duplicate creation (409), reading/updating (200), invalid fields (400), missing authentication (401), missing profiles (404), and deletion (200 followed by 404). Resume checks covered upload URL creation, listing, renaming, download URL creation, deletion and repeated deletion. Suggestions checks covered authentication and invalid input only.
 
-- GET/PUT/DELETE without login → 401; missing profile GET/PUT → 404.
-- POST fixture creation → 201; GET → 200 with numeric age; partial PUT → 200 with unchanged fields retained.
-- Malformed JSON, empty update, supplied `userId`, invalid age and nonexistent default resume → 400.
-- Setting an owned default resume and clearing it → 200.
-- Another user's ID in query parameters could not redirect PUT or DELETE; the original user's profile remained intact.
-- DELETE → 200; direct emulator checks confirmed the DynamoDB item and its S3 file were gone. GET and repeated DELETE afterward → 404.
-
-Synthetic fixtures were removed and the test services stopped afterward. Local authentication uses `X-Local-User`; SAM skips the Cognito authorizer. Real AWS authorization/IAM and service-failure behavior were not verified by this run; failure paths remain covered by mocked unit tests.
+Synthetic fixtures were deleted. Local authentication uses `X-Local-User`; SAM skips the Cognito authorizer. This run did not verify deployed authorization/IAM or successful Bedrock generation. Failure paths are covered by mocked unit tests.
 
 ## Known gaps
 
