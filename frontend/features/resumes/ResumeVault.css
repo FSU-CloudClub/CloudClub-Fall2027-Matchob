@@ -12,12 +12,7 @@
 .resume-list {
   display: grid;
   align-content: start;
-  flex: 0 1 auto;
-  min-height: 0;
   gap: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scrollbar-gutter: stable;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -168,15 +163,18 @@
 }
 
 .resume-vault.screen { margin: 16px 0; }
- 
+
 .resume-vault {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
 }
 
-.resume-vault > :not(.resume-list) {
+.resume-vault > * {
   flex-shrink: 0;
 }
 
@@ -184,6 +182,82 @@
 :root:not([data-theme='dark']) .resume-tags li {
   background: #e2ded4;
   color: #494438;
+}
+
+.resume-delete-dialog {
+  --danger: #b42318;
+  width: min(320px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: var(--page-bg);
+  color: var(--text);
+  box-shadow: var(--glass-shadow);
+}
+
+:root[data-theme='dark'] .resume-delete-dialog { --danger: #f04438; }
+
+.resume-delete-dialog::backdrop { background: rgb(0 0 0 / 0.35); }
+:root[data-theme='dark'] .resume-delete-dialog::backdrop { background: rgb(0 0 0 / 0.55); }
+
+.resume-delete-dialog h2 { margin: 0 0 8px; font-size: 16px; }
+
+.resume-delete-dialog p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.resume-delete-dialog strong {
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.resume-delete-dialog .resume-delete-error {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+.resume-delete-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.resume-delete-actions button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.resume-delete-actions button:hover:not(:disabled) { background: var(--glass-surface-hover); }
+
+.resume-delete-actions .resume-delete-confirm {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+
+.resume-delete-actions .resume-delete-confirm:hover:not(:disabled) {
+  background: var(--danger);
+  filter: brightness(0.92);
+}
+
+.resume-delete-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 340px) {
@@ -203,4 +277,5 @@
 @media (pointer: coarse) {
   .resume-more { min-height: 44px; }
   .resume-action-menu button { min-height: 44px; }
+  .resume-delete-actions button { min-height: 44px; }
 }
