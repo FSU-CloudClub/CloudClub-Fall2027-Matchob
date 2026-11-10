@@ -6,6 +6,8 @@
 import json
 import re
 
+from ai.model import read_json
+
 PROMPT_VERSION = "v1"
 MATCHES = {"matched", "partial", "missing"}
 MODEL_FIELDS = {
@@ -94,20 +96,7 @@ def suggest(requirements: list[dict], lines: dict, model) -> list[dict]:
     if not isinstance(raw, str):
         raise ValueError("Model must return JSON text")
 
-    # Remove optional Markdown code fences before parsing JSON.
-    raw = raw.strip()
-    fenced = re.fullmatch(
-        r"```(?:json)?\s*([\s\S]*?)\s*```",
-        raw,
-        flags=re.IGNORECASE
-    )
-    if fenced:
-        raw = fenced.group(1)
-
-    try:
-        parsed = json.loads(raw)
-    except json.JSONDecodeError as error:
-        raise ValueError("Model returned invalid JSON") from error
+    parsed = read_json(raw)
 
     if not isinstance(parsed, list):
         raise ValueError("Model response must be a JSON array")

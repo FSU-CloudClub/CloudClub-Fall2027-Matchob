@@ -8,9 +8,10 @@ sends it through `model`, and returns the `requirements` list from the reply. Ea
 requirement has the shape in ai/contracts/requirement.schema.json.
 """
 
-import json
 from pathlib import Path
 from typing import Callable
+
+from ai.model import read_json
 
 PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "requirement_extraction.v1.md"
 
@@ -42,12 +43,7 @@ def extract_requirements(job_text: str, model: Callable[[str, str], str]) -> lis
 
     reply = model(system, user)
 
-    try:
-        # TODO: swap in arturo's read_json once it's merged (it also handles
-        # replies wrapped in a code block).
-        data = json.loads(reply)
-    except json.JSONDecodeError as err:
-        raise ValueError(f"model reply is not valid JSON: {err}") from err
+    data = read_json(reply)
 
     if not isinstance(data, dict) or not isinstance(data.get("requirements"), list):
         raise ValueError('model reply must be a JSON object with a "requirements" list')
