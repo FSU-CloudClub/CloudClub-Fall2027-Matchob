@@ -8,14 +8,14 @@
 
 | Status | Why |
 |---|---|
-| `400` | Bad body: invalid JSON, missing, wrong-type or unknown field |
+| `400` | Invalid resume ID, or bad body: invalid JSON, missing, wrong-type or unknown field |
 | `401` | Missing or invalid token |
 | `404` | It doesn't exist, or it belongs to another user |
 | `409` | It already exists |
 | `422` | The AI guardrail blocked the request |
 | `500` | Server error |
 | `502` | The AI returned something that isn't a JSON object |
-| `503` | The AI is busy. Try again in a few seconds |
+| `503` | The AI is busy or unavailable, including connection failures. Try again in a few seconds |
 | `504` | The AI took too long |
 
 When deployed, a bad token is rejected by API Gateway before the Lambda runs, so that `401` body is `{ "message": "Unauthorized" }` instead.
@@ -37,7 +37,7 @@ When deployed, a bad token is rejected by API Gateway before the Lambda runs, so
 | `year` | string | Frontend | Required: `freshman`, `sophomore`, `junior`, `senior` or `graduate` |
 | `major` | string | Frontend | Required, non-empty |
 | `websites` | string[] | Frontend | Optional, defaults to `[]`. Each must start with `http://` or `https://` |
-| `resumes` | object | Backend | Every resume the user has, keyed by resume ID. Only the resume endpoints change it, so it always matches S3. Starts as `{}` |
+| `resumes` | object | Backend | Resume metadata, keyed by resume ID and managed by the resume endpoints. Starts as `{}`. Metadata is added before upload; failed uploads or S3 cleanup can leave metadata and files out of sync |
 | `structuredJsonResume` | object \| null | Backend | Filled in by resume parsing. `null` until then |
 
 What `resumes` looks like on the profile:
@@ -112,6 +112,9 @@ What `resumes` looks like on the profile:
 |---|---|---|
 | `200` | `{ "message": "Profile deleted" }` | |
 | `404` | error | Nothing to delete |
+| `500` | error | Profile deletion failed, or the profile was deleted but S3 cleanup failed |
+
+The backend deletes the profile first, then attempts to delete its stored resume files from S3. If any S3 cleanup fails, it returns `500` without restoring the profile; some files may remain. Retrying after the profile is gone returns `404` and does not retry that cleanup.
 
 ---
 
@@ -197,8 +200,11 @@ await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, 
 
 | Status | Returns | Why |
 |---|---|---|
-| `200` | `{ "message": "Resume deleted" }` | Deletes the S3 file and removes it from `resumes` |
+| `200` | `{ "message": "Resume deleted" }` | Removes the metadata from `resumes` and attempts to delete the S3 file |
+| `400` | error | Invalid ID: must be 1–128 ASCII letters, digits, underscores or hyphens |
 | `404` | error | Not found, or not this user's |
+
+S3 deletion is best effort: if it fails, the backend logs the failure and still returns `200`. The metadata stays deleted, but the file may remain in S3. Retrying returns `404` and does not retry S3 cleanup.
 
 ### `GET /resumes/{id}/download-url`
 
@@ -209,6 +215,7 @@ Generates a fresh presigned **download** link for one resume. Use it when a link
 | Status | Returns | Why |
 |---|---|---|
 | `200` | `{ "downloadUrl": "https://...", "expiresIn": 300 }` | `expiresIn` is in seconds |
+| `400` | error | Invalid ID: must be 1–128 ASCII letters, digits, underscores or hyphens |
 | `404` | error | Not found, or not this user's |
 
 ---
@@ -248,7 +255,7 @@ The limits keep calls fast and cheap. Longer inputs take longer to process, whic
 | `400` | error | Missing, empty, too long or unknown field |
 | `422` | error | The guardrail blocked the input or the output |
 | `502` | error | The model's reply wasn't a JSON object |
-| `503` | error | Bedrock throttled the call. Retry after a few seconds |
+| `503` | error | Bedrock throttled the call, the service is unavailable, or the connection failed. Retry after a few seconds |
 | `504` | error | No answer within the time limit. Safe to retry |
 
 **The response shape is set by the Bedrock prompt, not the backend.** The prompt must return this, because each item is the `Recommendation` type in `frontend/types/index.ts`:
