@@ -13,20 +13,25 @@ From the top folder of the repo:
 
 ## Who works where
 
-Only edit your own lane's files, so nobody's work collides.
+Only edit your own files, so nobody's work collides.
 
-| Lane | Job | Where |
+| Who | Job | Where |
 | --- | --- | --- |
-| 1 | The contract: the shape of every AI answer | `contracts/` |
-| 2 | Fake resumes and mock answers for Frontend | `fixtures/resumes/`, `fixtures/mock_responses/` |
-| 3 | Clean up job postings | `extraction/` |
-| 4 | Job postings, answer keys, the prompt | `fixtures/jobs/`, `prompts/` |
-| 5 | Synonym list and resume lines | `matching/` (synonyms, normalize, units) |
-| 6 | Keyword search and ranking | `matching/` (search, fusion) |
-| 7 | Span check and claim finder | `guardrails/` (span_check, claims) |
-| 8 | Final label and attack tests | `guardrails/classify.py`, `fixtures/adversarial/` |
+| Noah, Duy | The contract: the shape of every AI answer | `contracts/` |
+| Noah | Fake resumes and mock answers for Frontend | `fixtures/resumes/`, `fixtures/mock_responses/` |
+| Arturo | Clean up job postings | `extraction/` (clean, priority) |
+| Duy | Pull the requirements out of a job posting | `extraction/requirements.py` |
+| Triet | Job postings, answer keys and the requirements prompt | `fixtures/jobs/`, `prompts/requirement_extraction.v1.md` |
+| Rafael | Synonym list and splitting a resume into lines | `matching/` (synonyms, normalize, units) |
+| Javier | Keyword search and ranking | `matching/` (search, fusion) |
+| Arturo | Call the model and read its JSON reply | `model.py` |
+| Javier | Resume suggestions | `suggest.py` |
+| Noah, Javier | The suggestions prompt: Noah's honesty rules and console settings, Javier's instructions | `prompts/suggestions.v1.md` |
+| Noah | Span check, claim finder, final label and attack tests | `guardrails/`, `fixtures/adversarial/` |
 
-Each lane also has one test file in `tests/`.
+The live app gets its suggestions from Backend's single Bedrock call, which uses the prompt in `prompts/suggestions.v1.md`. `suggest.py` and `extraction/requirements.py` aren't used by it; they're kept for reference.
+
+Each part has its tests in `tests/`.
 
 ## Three rules
 
