@@ -4,6 +4,7 @@ import type { Resume } from '../../types';
 import pdfIcon from '../../assets/icons/file-earmark-pdf.svg';
 import { ResumeUpload } from './ResumeUpload';
 import './ResumeVault.css';
+import { ResumeTagsRename } from './ResumeTagsRename';
 
 const uploadDate = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -25,7 +26,12 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
   const [openActions, setOpenActions] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [uploadedResumes, setUploadedResumes] = useState<Resume[]>([]);
-  const visibleResumes = [...uploadedResumes, ...resumes];
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editedResumes, setEditedResumes] = useState<Record<string, Resume>>({});
+
+  const visibleResumes = [...uploadedResumes, ...resumes].map(
+    (resume) => editedResumes[resume.id] ?? resume,
+  );
 
   function placeholder(action: string, name: string) {
     setNotice(`${action} for ${name} is not available yet.`);
@@ -60,6 +66,19 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                 <img className="resume-pdf-icon" src={pdfIcon} alt="" aria-hidden="true" />
               </button>
               <div className="resume-row-content">
+                {editingId === resume.id ? (
+                  <ResumeTagsRename
+                    resume={resume}
+                    initialEditing
+                    onSave={(updatedResume) => {
+                      setEditedResumes((current) => ({ ...current, [updatedResume.id]: updatedResume }));
+                      setEditingId(null);
+                      setNotice(`Updated ${updatedResume.name}.`);
+                    }}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <>
                 <h3><button className="resume-name" onClick={() => placeholder('Preview', resume.name)}>{resume.name}</button></h3>
                 <p className="resume-upload-date">
                   <time dateTime={resume.uploadedAt}>{uploadDate.format(new Date(resume.uploadedAt))}</time>
@@ -68,6 +87,8 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                   <ul className="resume-tags" aria-label={`Tags for ${resume.name}`}>
                     {resume.tags.map((tag, index) => <li key={`${tag}-${index}`}>{tag}</li>)}
                   </ul>
+                )}
+                  </>
                 )}
               </div>
               <div className="resume-actions" onBlur={(event) => {
@@ -82,7 +103,15 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                 {openActions === resume.id && (
                   <div className="resume-action-menu" id={`actions-${resume.id}`}>
                     {['Download', 'Edit', 'Delete'].map((action) => (
-                      <button key={action} onClick={() => placeholder(action, resume.name)}>{action}</button>
+                      <button key={action} onClick={() => {
+                        if (action === 'Edit') {
+                          setEditingId(resume.id);
+                          setOpenActions(null);
+                          setNotice('');
+                        } else {
+                          placeholder(action, resume.name);
+                        }
+                      }}>{action}</button>
                     ))}
                   </div>
                 )}
