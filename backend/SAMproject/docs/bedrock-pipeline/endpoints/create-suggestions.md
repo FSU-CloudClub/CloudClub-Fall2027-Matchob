@@ -26,7 +26,9 @@ Takes the user's resume text and a job description and returns the model's sugge
 |---|---|---|
 | `ClientError` with a code in `ERROR_STATUS` | Bedrock is busy or the model timed out | `ERROR_STATUS[code]` (503 or 504) |
 | Any other `ClientError` | Wrong ARN, missing permission, a variable the prompt doesn't know | 500 |
-| `ReadTimeoutError` | No answer within the client's 25 s `read_timeout` | 504 |
+| `ReadTimeoutError` / `ConnectTimeoutError` | No answer within the client's 25 s `read_timeout` | 504 |
+
+Connection failures return `503`. Unexpected route exceptions return a generic JSON `500`; only the exception type is logged to avoid logging request text.
 
 `ReadTimeoutError` is in `botocore.exceptions`, but it isn't a `ClientError`, so it needs its own `except`.
 

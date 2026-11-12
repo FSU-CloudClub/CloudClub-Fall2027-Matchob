@@ -1,0 +1,20 @@
+Security Analyst - Ironvale Security
+
+About the role
+Our security team protects customer data across the whole company. You will monitor for threats, respond to incidents, and help teams build safer software.
+
+Requirements
+- 3+ years of experience in information security
+- Strong understanding of common web vulnerabilities
+- Experience with security monitoring and SIEM tools
+- Able to write scripts in Python to automate checks
+- Clear communication when writing incident reports
+
+Nice to have
+- A relevant certification such as CISSP or Security+
+- Experience with cloud security on AWS
+- Familiarity with penetration testing
+
+Benefits
+- Competitive salary
+- Certification reimbursement

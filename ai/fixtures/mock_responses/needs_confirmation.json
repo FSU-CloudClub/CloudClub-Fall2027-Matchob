@@ -1,0 +1,38 @@
+{
+  "_comment": "Needs Confirmation: the suggestion says \"Led\" but Alex's resume only says \"Helped\". The user either adds a note or link proving they led it, or rejects it and keeps \"Helped\". Highlight the evidence range in resume_text.",
+  "requirements": [
+    {
+      "id": "req-2",
+      "text": "Experience leading a data migration project",
+      "category": "experience",
+      "priority": "nice",
+      "source_span": {
+        "start": 300,
+        "end": 343,
+        "text": "Experience leading a data migration project"
+      }
+    }
+  ],
+  "recommendations": [
+    {
+      "requirement_id": "req-2",
+      "match": "partial",
+      "original_bullet": "Helped migrate weekly reports from Excel to SQL.",
+      "suggestion": "Led the migration of weekly reports from Excel to SQL.",
+      "reason": "Your resume says you helped with this migration, not that you led it. Add a note or link showing you led it, or keep \"Helped\".",
+      "status": "needs_confirmation",
+      "prompt_version": "mock-1",
+      "evidence": [
+        {
+          "source": "resume",
+          "start": 963,
+          "end": 1011,
+          "text": "Helped migrate weekly reports from Excel to SQL.",
+          "tier": "high"
+        }
+      ]
+    }
+  ],
+  "job_text": "Software Engineering Intern - Contoso\n\nAbout the role\nJoin our platform team for the summer and ship real features with help from senior engineers.\n\nRequirements\n- Experience writing Python scripts to automate data work\n- Experience deploying containerized applications on Kubernetes\n\nNice to have\n- Experience leading a data migration project\n- Experience with Terraform\n\nBenefits\n- Paid internship with a housing stipend\n",
+  "resume_text": "Alex Rivera\nalex@example.com | 850-555-0142 | North Harbor, FL\n\nEDUCATION\nNorth Harbor State University, North Harbor, FL\nB.S. in Computer Science, expected May 2028; Minor in Mathematics\nGPA 3.6; Dean's List Fall 2025 and Spring 2026\nRelevant coursework: Data Structures, Databases, Software Engineering, Algorithms\nActivities: NHSU Coders Club (member), Hack Night volunteer\nHonors: NHSU Merit Scholarship, 2024 - Present\n\nEXPERIENCE\nJunior Web Developer, Oakline Print Shop, Jan 2026 - Present\n- Rebuilt the online order form in React and reduced page load time by 30% by compressing images and splitting code.\n- Built an AWS Lambda function that emails customers a proof of their order within a minute of checkout.\n- Fixed 12 front-end bugs reported by staff and added tests for the order form.\nData Assistant, Campus Survey Office, Aug 2025 - Dec 2025\n- Wrote Python scripts to clean survey data for a campus office, cutting manual work by 5 hours a week.\n- Helped migrate weekly reports from Excel to SQL.\n- Documented the report steps so new student workers could run them alone.\n\nPROJECTS\nCourse Planner Web App (Flask, React, PostgreSQL), Mar 2026\n- Built an app that lets students drag classes into a four-year plan and flags missing prerequisites.\n- Set up automated deployments with GitHub Actions so every merge to main goes live after tests pass.\n- Wrote 25 unit tests for the planning rules using pytest.\nLibrary Book Tracker (Java, SQLite), Nov 2025\n- Created a command-line tool that tracks borrowed books and due dates.\n- Added search by title, author and subject with simple text matching.\n- Stored all records in a SQLite file so data survives restarts.\nWeather Dashboard (JavaScript, HTML, CSS), Jun 2025\n- Built a one-page site that shows a five-day forecast from a public weather API.\n- Added a dark mode toggle and saved the choice in the browser.\n- Cached responses for ten minutes to stay under the API request limit.\n\nSKILLS\nPython, JavaScript, React, Java, SQL, PostgreSQL, SQLite, HTML, CSS, Flask, pytest, Git, GitHub Actions, AWS Lambda, Linux\n"
+}

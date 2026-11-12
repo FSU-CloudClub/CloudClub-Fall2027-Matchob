@@ -8,6 +8,9 @@ Parameters:
   # IDs of the prompt and guardrail made in the Bedrock console. Set in samconfig.toml.
   PromptArn:
     Type: String
+  BedrockModelResourceArns:
+    Type: CommaDelimitedList
+    Description: Exact model and inference profile ARNs required by the prompt.
   GuardrailId:
     Type: String
   GuardrailVersion:
@@ -56,15 +59,16 @@ Resources:
         Variables:
           POWERTOOLS_SERVICE_NAME: bedrock
       Policies:
-        # RenderPrompt reads the console prompt, InvokeModel runs its model, ApplyGuardrail
-        # runs the guardrail. "*" because the prompt's model can change in the console.
         - Statement:
             - Effect: Allow
-              Action:
-                - bedrock:RenderPrompt
-                - bedrock:InvokeModel
-                - bedrock:ApplyGuardrail
-              Resource: "*"
+              Action: bedrock:RenderPrompt
+              Resource: !Ref PromptArn
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: !Ref BedrockModelResourceArns
+            - Effect: Allow
+              Action: bedrock:ApplyGuardrail
+              Resource: !Sub "arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:guardrail/${GuardrailId}"
       Events:
         CreateSuggestions:
           Type: Api

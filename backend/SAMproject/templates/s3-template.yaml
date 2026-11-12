@@ -3,6 +3,8 @@ Transform: AWS::Serverless-2016-10-31
 Description: Resumes service - uploads bucket, API, and resumes Lambda
 
 Parameters:
+  UploadBucketName:
+    Type: String
   UserPoolArn:
     Type: String
   UsersTableName:
@@ -38,6 +40,7 @@ Resources:
   UploadBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketName: !Ref UploadBucketName
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -73,10 +76,25 @@ Resources:
         Variables:
           POWERTOOLS_SERVICE_NAME: resumes
       Policies:
-        - S3CrudPolicy:
-            BucketName: !Ref UploadBucket
-        - DynamoDBCrudPolicy:
-            TableName: !Ref UsersTableName
+        - Version: '2012-10-17'
+          Statement:
+            # All resume routes share this role. Metadata is read or updated
+            # within an existing profile; no table scans or profile deletion.
+            - Sid: ReadAndUpdateResumeMetadata
+              Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+              Resource: !Sub 'arn:${AWS::Partition}:dynamodb:${AWS::Region}:${AWS::AccountId}:table/${UsersTableName}'
+            # Presigned uploads/downloads need object permissions on the
+            # signing role. DeleteObject supports the declared delete route.
+            - Sid: ManageResumeFiles
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+              Resource: !Sub '${UploadBucket.Arn}/users/*/resumes/*'
       Events:
         ListResumes:
           Type: Api

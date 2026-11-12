@@ -1,0 +1,25 @@
+# Node.js dependencies
+node_modules/
+
+# Original JavaScript backup files
+/data/pdfParser.js
+/data/pdfParser.test.js
+/data/testResume.js
+
+# Local environment variables
+.env
+.env.local
+
+# Build output
+dist/
+
+# Logs
+*.log
+
+# Python virtual environments and cache folders
+.venv/
+__pycache__/
+
+# QA reports: may contain locked results, never commit
+report*.md
+*_locked*.md

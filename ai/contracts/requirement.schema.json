@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Requirement",
+  "type": "object",
+  "required": [
+    "id",
+    "text",
+    "category",
+    "priority",
+    "source_span"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "text": {
+      "type": "string"
+    },
+    "category": {
+      "enum": [
+        "skill",
+        "tool",
+        "experience",
+        "responsibility"
+      ]
+    },
+    "priority": {
+      "enum": [
+        "must",
+        "nice"
+      ]
+    },
+    "source_span": {
+      "type": "object",
+      "required": [
+        "start",
+        "end",
+        "text"
+      ],
+      "properties": {
+        "start": {
+          "type": "integer"
+        },
+        "end": {
+          "type": "integer"
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

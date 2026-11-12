@@ -1,0 +1,20 @@
+Full Stack Software Engineer - Harbor Analytics
+
+About the role
+Join a small product team that owns features from database to browser. You will work across the stack and help shape how we build software.
+
+Requirements
+- 2+ years of experience building web applications
+- Proficiency with React on the frontend
+- Experience writing backend services in Node.js
+- Comfortable designing and querying SQL databases
+- Experience with Git-based team workflows
+
+Nice to have
+- Experience deploying applications with Docker
+- Familiarity with CI/CD pipelines
+- Exposure to GraphQL
+
+Benefits
+- Competitive salary and equity
+- Remote-first culture

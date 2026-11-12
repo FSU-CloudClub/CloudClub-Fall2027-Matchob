@@ -67,20 +67,13 @@ Everything is in `templates/bedrock-template.yaml`. The `CreateSuggestions` rout
 | `GUARDRAIL_ID` | `!Ref GuardrailId` | Same |
 | `GUARDRAIL_VERSION` | `!Ref GuardrailVersion` | Same |
 
-**Policy:**
-
-```yaml
-      Policies:
-        - Statement:
-            - Effect: Allow
-              Action:
-                - bedrock:RenderPrompt
-                - bedrock:InvokeModel
-                - bedrock:ApplyGuardrail
-              Resource: "*"
-```
-
-`RenderPrompt` reads the console prompt, `InvokeModel` runs its model and `ApplyGuardrail` runs the guardrail. `"*"` keeps it simple, because the prompt's model can change in the console without a redeploy. If a deployed call fails with `AccessDeniedException`, the log names the missing action.
+**Policy:** `templates/bedrock-template.yaml` scopes `RenderPrompt` to `PromptArn`,
+`ApplyGuardrail` to the configured guardrail ARN, and `InvokeModel` to the explicit
+`BedrockModelResourceArns` list. Supply this comma-separated root parameter in
+`samconfig.toml` before deploying. Get the exact model ARN from the AI team; when
+using an inference profile, include its ARN and the foundation-model ARNs in every
+required destination region. Do not use wildcard resources. A model change in the
+console requires updating this list and redeploying.
 
 ### Time limits
 

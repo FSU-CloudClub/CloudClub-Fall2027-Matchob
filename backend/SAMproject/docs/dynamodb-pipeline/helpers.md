@@ -18,24 +18,13 @@ The spec passed to `validate_fields`: `{field: (default, validator)}`. It's the 
 | `year` | `REQUIRED` | `one_of("freshman", "sophomore", "junior", "senior", "graduate")` |
 | `major` | `REQUIRED` | `non_empty_str` |
 | `websites` | `[]` | `url_list` |
-| `defaultResume` | `None` | `optional_str` |
 
 `userId`, `resumes` and `structuredJsonResume` are deliberately **not** in the spec, so `validate_fields` rejects them with `Unknown fields: ...`. That's what stops a client from writing another user's ID or editing the resume list directly.
 
+The removed `defaultResume` field is rejected with `400 Unknown fields: defaultResume`, including when its value is null.
+
 **Adding a field:** add one line here, add the row to the [contract](../general/api-contracts.md#profile-object) and the data model in [README.md](README.md), in the same pull request. If no existing validator fits, add one to `matchob_common/validators.py`.
 
-## `profile_exists(table, user_id) → bool`
-
-| Parameter | Meaning |
-|---|---|
-| `table` | The DynamoDB `Table` from `app.py` |
-| `user_id` | The signed-in user's ID |
-
-Calls `table.get_item(Key={"userId": user_id}, ProjectionExpression="userId")` and returns whether an `Item` came back. `ProjectionExpression` fetches only the key, so the read stays small however big the profile is.
-
-**When to use it:** only after a conditional write fails with more than one possible cause. In `PUT /profile`, a failed condition means either "no profile" (404) or "`defaultResume` isn't one of your resumes" (400), and this read tells them apart. Don't call it before a write to check existence, because the profile could be deleted between the read and the write. Put the check in the write's `ConditionExpression` instead.
-
-On a `ClientError` it logs the exception and returns `False`, so the caller reports 404.
 
 ---
 

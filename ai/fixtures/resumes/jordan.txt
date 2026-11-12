@@ -1,0 +1,37 @@
+Jordan Lee
+jordan@example.com | 850-555-0171 | North Harbor, FL
+
+EDUCATION
+North Harbor State University, North Harbor, FL
+B.S. in Statistics, expected May 2027; Minor in Business Analytics
+GPA 3.7; Dean's List Fall 2024 through Spring 2026
+Relevant coursework: Regression Analysis, Database Systems, Data Visualization, Probability
+Activities: NHSU Data Science Society (treasurer), Intramural volleyball
+Honors: NHSU Honors Scholar, 2025
+
+EXPERIENCE
+Data Analyst Intern, North Harbor Housing Group, May 2026 - Aug 2026
+- Cleaned 18,000 rows of rental records with pandas, removing 1,200 duplicate entries before monthly reporting.
+- Wrote SQL queries to pull occupancy numbers and cut report preparation from 6 hours to 2 hours.
+- Built a Tableau dashboard that staff use each week to track vacancies by neighborhood.
+Research Assistant, NHSU Social Science Lab, Jan 2026 - Apr 2026
+- Organized survey responses from 400 students into one tidy dataset using Python and pandas.
+- Created charts and summary tables for a faculty report on study habits.
+- Checked data entry against paper forms and fixed 75 mistakes.
+
+PROJECTS
+Campus Bike Share Analysis (Python, pandas, Tableau), Apr 2026
+- Analyzed 50,000 trip records in pandas and found the busiest hours and stations.
+- Built a Tableau dashboard that maps trips by hour and day of the week.
+- Shared the dashboard with classmates and fixed two chart labels they found confusing.
+Movie Ratings Explorer (SQL, SQLite), Dec 2025
+- Built a database of film ratings and wrote queries that rank titles by genre and year.
+- Added indexes that made the slowest query run in under a second.
+- Documented each table and column in a short data dictionary.
+Housing Price Model (R, regression), Oct 2025
+- Fit a linear regression on 2,000 home sales and checked residuals for problems.
+- Wrote a two-page summary of the results for a class presentation.
+- Compared two models using adjusted R-squared before choosing one.
+
+SKILLS
+SQL, Python, pandas, NumPy, Tableau, Excel, R, SQLite, Git, Jupyter, matplotlib, regression, data cleaning, dashboards

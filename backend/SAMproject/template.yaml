@@ -11,6 +11,16 @@ Parameters:
     Type: String
   GuardrailVersion:
     Type: String
+  BedrockModelResourceArns:
+    Type: CommaDelimitedList
+    Description: Exact model and inference profile ARNs used by the console prompt (include destination model ARNs for cross-region inference).
+  UploadBucketName:
+    Type: String
+    Default: ""
+    Description: Existing uploads bucket name when updating a deployed stack; leave empty for new stacks.
+
+Conditions:
+  HasUploadBucketName: !Not [!Equals [!Ref UploadBucketName, ""]]
 
 Resources:
   SharedStack:
@@ -23,6 +33,12 @@ Resources:
     Properties:
       Location: templates/dynamodb-template.yaml
       Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
         UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
 
   ResumesStack:
@@ -30,6 +46,12 @@ Resources:
     Properties:
       Location: templates/s3-template.yaml
       Parameters:
+        UploadBucketName: !If
+          - HasUploadBucketName
+          - !Ref UploadBucketName
+          - !Sub
+            - "matchob-resumes-${StackUuid}"
+            - StackUuid: !Select [2, !Split ["/", !Ref "AWS::StackId"]]
         UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
         UsersTableName: !GetAtt ProfileStack.Outputs.UsersTableName
 
@@ -39,6 +61,7 @@ Resources:
       Location: templates/bedrock-template.yaml
       Parameters:
         UserPoolArn: !GetAtt SharedStack.Outputs.UserPoolArn
+        BedrockModelResourceArns: !Join [",", !Ref BedrockModelResourceArns]
         PromptArn: !Ref PromptArn
         GuardrailId: !Ref GuardrailId
         GuardrailVersion: !Ref GuardrailVersion
