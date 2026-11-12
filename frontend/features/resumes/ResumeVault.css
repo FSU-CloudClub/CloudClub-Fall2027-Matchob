@@ -204,3 +204,10 @@
   .resume-more { min-height: 44px; }
   .resume-action-menu button { min-height: 44px; }
 }
+
+.resume-view-switch { display: flex; gap: 4px; padding: 4px; margin-top: 10px; border: 1px solid var(--glass-border); border-radius: 10px; }
+.resume-view-switch button { flex: 1; padding: 9px 4px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.resume-view-switch button[aria-pressed='true'] { background: var(--glass-surface-hover); color: var(--text); font-weight: 700; }
+.resume-file-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.resume-file-actions .button { padding: 6px 10px; font-size: 11px; }
+.resume-file-actions p { width: 100%; font-size: 11px; }

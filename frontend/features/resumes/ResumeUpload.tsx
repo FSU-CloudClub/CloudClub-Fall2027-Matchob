@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Button } from '../../components/Button';
 import { uploadResume, type UploadResult } from '../../services/uploadResume';
 import './ResumeUpload.css';
+import { saveLocalFile } from '../../services/resumeFiles';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB placeholder: confirm with Backend/AWS
 const MAX_RESUME_MB = MAX_FILE_SIZE / (1024 * 1024);
@@ -50,6 +51,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
     setUploadState({ status: 'uploading', file });
     try {
       const result = await uploadResume(file);
+      await saveLocalFile(result.key, file);
       setUploadState({ status: 'success', file });
       onUploadComplete?.(result, file);
     } catch (error) {

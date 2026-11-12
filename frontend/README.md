@@ -69,3 +69,25 @@ Chrome is the only target scripted for now. WXT supports separate browser builds
 | Autofill Script Integration | Add a WXT content script when the interaction contract is agreed |
 
 The popup has only local preview navigation. No background or content script is registered yet, and no live backend requests are made.
+
+## Resume preview and download demo
+
+The Vault has separate **Saved resumes** and **Upload new** views. Clicking a resume name or thumbnail opens
+`resume-preview.html` in a new extension tab. Download is in each row's three-dot menu and saves a PDF directly.
+Sample rows use `public/samples/sample-resume.pdf` (copied from the repository's
+Jordan resume fixture). Uploaded PDFs are stored locally in IndexedDB so the
+preview tab can read the actual chosen file. Upload metadata remains in popup
+memory for this demo; reopening the popup resets its list. No files are sent to
+Backend by this flow.
+
+`services/resumeFiles.ts` is the file resolver boundary to replace when Backend
+provides file URLs. It handles file fetching separately from the React UI.
+
+Manual checks after building and reloading the extension:
+
+- Get Started → Saved resumes: scroll the list without the upload area above it.
+- Preview a sample row: a new tab displays a PDF with the browser viewer’s built-in controls.
+- Download a row: the saved PDF opens in a PDF reader.
+- Upload new: choose a PDF, then preview/download that same file from Saved resumes.
+- Open `resume-preview.html?id=missing`: verify the error, Retry, and download failure state.
+- Browser PDF rendering can depend on Chrome settings; the page provides a download fallback.
