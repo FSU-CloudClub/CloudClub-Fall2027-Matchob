@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-WXT opens Chrome with the extension loaded. Click the Matchob extension icon to open the popup. `Get Started`, `Back`, and `Next` navigate the preview screens. The Resume Vault includes a PDF picker and drag-and-drop upload preview; uploads appear while the Vault screen stays open but are not saved to a backend. On Windows PowerShell, use `npm.cmd` in place of `npm` if script execution is disabled.
+WXT opens Chrome with the extension loaded. Click the Matchob extension icon to open the popup. `Get Started`, `Back`, and `Next` navigate the preview screens. The Resume Vault includes a PDF picker and drag-and-drop upload preview; the Vault now calls the local backend. Start `python3 dev.py` from `backend/SAMproject` before testing resumes. See [local resume integration](services/README.md). On Windows PowerShell, use `npm.cmd` in place of `npm` if script execution is disabled.
 
 ## Load and test in Chrome
 
@@ -68,4 +68,4 @@ Chrome is the only target scripted for now. WXT supports separate browser builds
 | Resume Parsing Integration | Add a parsing service after its API contract is agreed |
 | Autofill Script Integration | Add a WXT content script when the interaction contract is agreed |
 
-The popup has only local preview navigation. No background or content script is registered yet, and no live backend requests are made.
+The Resume Vault uses the local backend; recommendations remain mocked. See [local resume integration](services/README.md) for setup and testing.
