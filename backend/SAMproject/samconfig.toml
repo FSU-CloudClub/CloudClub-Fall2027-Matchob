@@ -4,6 +4,7 @@ version = 0.1
 
 [default.global.parameters]
 stack_name = "test"
+region = "us-east-1"
 
 [default.build.parameters]
 cached = true
@@ -17,7 +18,13 @@ capabilities = "CAPABILITY_IAM CAPABILITY_AUTO_EXPAND"
 confirm_changeset = true
 resolve_s3 = true
 # Uncomment and fill in from the Bedrock console before deploying (docs/bedrock-pipeline/README.md).
-# parameter_overrides = "PromptArn=arn:aws:bedrock:<region>:<account>:prompt/<id>:<version> BedrockModelResourceArns=<model-arn>,<inference-profile-arn-if-used> GuardrailId=<id> GuardrailVersion=<version>"
+# parameter_overrides = "PromptArn=arn:aws:bedrock:<region>:<account>:prompt/<id>:<version> GuardrailId=<id> GuardrailVersion=<version>"
+stack_name = "univ-proj-backend"
+s3_prefix = "univ-proj-backend"
+region = "us-east-1"
+profile = "univ-dev"
+parameter_overrides = "PromptArn=\"\" GuardrailId=\"\" GuardrailVersion=\"\""
+image_repositories = []
 
 [default.package.parameters]
 resolve_s3 = true
