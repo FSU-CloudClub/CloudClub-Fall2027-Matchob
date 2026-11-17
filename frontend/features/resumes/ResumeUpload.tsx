@@ -9,6 +9,7 @@ import {
   isLegacyWordFile,
 } from './resumeFileTypes';
 import './ResumeUpload.css';
+import { saveLocalFile } from '../../services/resumeFiles';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB placeholder: confirm with Backend/AWS
 const MAX_RESUME_MB = MAX_FILE_SIZE / (1024 * 1024);

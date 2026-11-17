@@ -186,12 +186,12 @@ Stay in your own files, add to the end of shared files instead of rewriting them
 - [ ] If a deployed table already has profiles, remove the attribute from them (`update_item` with `REMOVE defaultResume` for each item), or delete the test profiles. Otherwise `GET /profile` keeps returning it.
 
 ### Task 4 checklist: `defaultResume` in docs
-- [ ] [dynamodb-pipeline/README.md](dynamodb-pipeline/README.md): the data model row.
-- [ ] [dynamodb-pipeline/helpers.md](dynamodb-pipeline/helpers.md): the `PROFILE_FIELDS` row and the `profile_exists` section.
-- [ ] [post-profile.md](dynamodb-pipeline/endpoints/post-profile.md): step 4 and the `defaultResume sent` error row.
-- [ ] [put-profile.md](dynamodb-pipeline/endpoints/put-profile.md): the intro, steps 5 and 7, the `ConditionExpression` row, the error row, the `Done when` curls and the gotcha.
-- [ ] [s3-pipeline/README.md](s3-pipeline/README.md): `defaultResume` in the storage design diagram.
-- [ ] [delete-resume.md](s3-pipeline/endpoints/delete-resume.md): step 4, all of "Call 2", the call 2 error rows and the `PUT /profile` line in `Done when`. Delete becomes one DynamoDB call, then the S3 delete. Whoever builds `DELETE /resumes/{resumeId}` (Meeting 3 task 5) should build it without the call 2 step.
+- [x] [dynamodb-pipeline/README.md](dynamodb-pipeline/README.md): the data model row.
+- [x] [dynamodb-pipeline/helpers.md](dynamodb-pipeline/helpers.md): the `PROFILE_FIELDS` row and the `profile_exists` section.
+- [x] [post-profile.md](dynamodb-pipeline/endpoints/post-profile.md): step 4 and the `defaultResume sent` error row.
+- [x] [put-profile.md](dynamodb-pipeline/endpoints/put-profile.md): the intro, steps 5 and 7, the `ConditionExpression` row, the error row, the `Done when` curls and the gotcha.
+- [x] [s3-pipeline/README.md](s3-pipeline/README.md): `defaultResume` in the storage design diagram.
+- [x] [delete-resume.md](s3-pipeline/endpoints/delete-resume.md): step 4, all of "Call 2", the call 2 error rows and the `PUT /profile` line in `Done when`. Delete becomes one DynamoDB call, then the S3 delete. Whoever builds `DELETE /resumes/{resumeId}` (Meeting 3 task 5) should build it without the call 2 step.
 
 ### Next steps
 1. **Pull `main`** and branch for one task (`git switch -c <name>/<task>`).

@@ -217,5 +217,11 @@
     "source": "Built a booking tool for Oakline Print Shop.",
     "suggestion": "Built a booking tool for Oakline Print Shop as co-founder.",
     "expected": "unsupported"
+  },
+  {
+    "name": "doubled when the numbers show 75% (QA practice case)",
+    "source": "Grew the Oakline Print Shop email list from 400 to 700 subscribers in one season.",
+    "suggestion": "Doubled the Oakline Print Shop email list in one season.",
+    "expected": "unsupported"
   }
 ]
