@@ -37,13 +37,13 @@
   cursor: pointer;
 }
 
-.resume-pdf-icon {
+.resume-file-icon {
   display: block;
   width: 34px;
   height: 44px;
 }
 
-:root[data-theme='dark'] .resume-pdf-icon {
+:root[data-theme='dark'] .resume-file-icon {
   filter: invert(1);
 }
 

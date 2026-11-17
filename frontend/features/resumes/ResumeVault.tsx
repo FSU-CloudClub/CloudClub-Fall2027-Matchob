@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react';
 import { mockResumes } from '../../mocks/resumes';
 import type { Resume } from '../../types';
 import pdfIcon from '../../assets/icons/file-earmark-pdf.svg';
+import wordIcon from '../../assets/icons/file-earmark-word.svg';
+import { kindFromContentType, type ResumeFileKind } from './resumeFileTypes';
 import { ResumeUpload } from './ResumeUpload';
 import { ResumeDeleteDialog } from './ResumeDeleteDialog';
 import { useResumeDelete } from './useResumeDelete';
@@ -16,6 +18,11 @@ const uploadDate = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   timeZone: 'UTC',
 });
+
+const FILE_ICONS: Record<ResumeFileKind, string> = {
+  pdf: pdfIcon,
+  docx: wordIcon,
+};
 
 type ResumeVaultProps = {
   resumes?: Resume[];
@@ -93,6 +100,7 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
           id: result.key,
           name: file.name,
           tags: [],
+          contentType: result.contentType,
           uploadedAt: new Date().toISOString(),
         }, ...current]);
         setView('saved');
@@ -109,8 +117,13 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
         <ul className="resume-list" aria-label="Resume preview list">
           {visibleResumes.map((resume) => (
             <li key={resume.id} className="resume-row">
-              <button className="resume-thumbnail" aria-label={`Preview ${resume.name}`} onClick={() => void openResumePreview(resume).catch(() => setNotice('Could not open preview. Please try again.'))}>
-                <img className="resume-pdf-icon" src={pdfIcon} alt="" aria-hidden="true" />
+              <button className="resume-thumbnail" aria-label={`Preview ${resume.name}`} onClick={() => placeholder('Preview', resume.name)}>
+                <img
+                  className="resume-file-icon"
+                  src={FILE_ICONS[kindFromContentType(resume.contentType)]}
+                  alt=""
+                  aria-hidden="true"
+                />
               </button>
               <div className="resume-row-content">
                 {editingId === resume.id ? (
