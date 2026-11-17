@@ -6,6 +6,14 @@ export const mockResumes: Resume[] = [
     id: 'sample-resume-1',
     name: 'Sample Resume',
     tags: ['software'],
+    contentType: 'application/pdf',
     uploadedAt: '2026-10-16T00:00:00.000Z',
+  },
+  {
+    id: 'sample-resume-2',
+    name: 'Sample Resume (Word)',
+    tags: ['data'],
+    contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    uploadedAt: '2026-10-12T00:00:00.000Z',
   },
 ];
