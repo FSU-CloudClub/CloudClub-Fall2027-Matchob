@@ -6,6 +6,7 @@ import { ResumeUpload } from './ResumeUpload';
 import { ResumeDeleteDialog } from './ResumeDeleteDialog';
 import { useResumeDelete } from './useResumeDelete';
 import './ResumeVault.css';
+import { ResumeTagsRename } from './ResumeTagsRename';
 import { downloadResume } from '../../services/resumeFiles';
 import { openResumePreview } from './ResumePreviewDownload';
 
@@ -30,6 +31,12 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [uploadedResumes, setUploadedResumes] = useState<Resume[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editedResumes, setEditedResumes] = useState<Record<string, Resume>>({});
+
+  const visibleResumes = [...uploadedResumes, ...resumes].map(
+    (resume) => editedResumes[resume.id] ?? resume,
+  );
   // `resumes` comes in as a prop, so deletions are tracked here and filtered out.
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
 
@@ -106,7 +113,20 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                 <img className="resume-pdf-icon" src={pdfIcon} alt="" aria-hidden="true" />
               </button>
               <div className="resume-row-content">
-                <h3><button className="resume-name" onClick={() => void openResumePreview(resume).catch(() => setNotice('Could not open preview. Please try again.'))}>{resume.name}</button></h3>
+                {editingId === resume.id ? (
+                  <ResumeTagsRename
+                    resume={resume}
+                    initialEditing
+                    onSave={(updatedResume) => {
+                      setEditedResumes((current) => ({ ...current, [updatedResume.id]: updatedResume }));
+                      setEditingId(null);
+                      setNotice(`Updated ${updatedResume.name}.`);
+                    }}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <>
+                <h3><button className="resume-name" onClick={() => placeholder('Preview', resume.name)}>{resume.name}</button></h3>
                 <p className="resume-upload-date">
                   <time dateTime={resume.uploadedAt}>{uploadDate.format(new Date(resume.uploadedAt))}</time>
                 </p>
@@ -114,6 +134,8 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                   <ul className="resume-tags" aria-label={`Tags for ${resume.name}`}>
                     {resume.tags.map((tag, index) => <li key={`${tag}-${index}`}>{tag}</li>)}
                   </ul>
+                )}
+                  </>
                 )}
               </div>
               <div className="resume-actions" onBlur={(event) => {
@@ -127,9 +149,16 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                 <button className="resume-more" aria-label={`Actions for ${resume.name}`} aria-expanded={openActions === resume.id} aria-controls={`actions-${resume.id}`} onClick={() => setOpenActions(openActions === resume.id ? null : resume.id)}>⋯</button>
                 {openActions === resume.id && (
                   <div className="resume-action-menu" id={`actions-${resume.id}`}>
-                    <button disabled={downloadingId !== null} onClick={() => void handleDownload(resume)}>{downloadingId === resume.id ? 'Preparing…' : 'Download'}</button>
-                    {['Edit', 'Delete'].map((action) => (
-                      <button key={action} onClick={() => placeholder(action, resume.name)}>{action}</button>
+                    {['Download', 'Edit', 'Delete'].map((action) => (
+                      <button key={action} onClick={() => {
+                        if (action === 'Edit') {
+                          setEditingId(resume.id);
+                          setOpenActions(null);
+                          setNotice('');
+                        } else {
+                          placeholder(action, resume.name);
+                        }
+                      }}>{action}</button>
                     ))}
                   </div>
                 )}
