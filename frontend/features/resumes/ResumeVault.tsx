@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { mockResumes } from '../../mocks/resumes';
 import type { Resume } from '../../types';
 import pdfIcon from '../../assets/icons/file-earmark-pdf.svg';
 import { ResumeUpload } from './ResumeUpload';
+import { ResumeDeleteDialog } from './ResumeDeleteDialog';
+import { useResumeDelete } from './useResumeDelete';
 import './ResumeVault.css';
 import { downloadResume } from '../../services/resumeFiles';
 import { openResumePreview } from './ResumePreviewDownload';
@@ -18,7 +20,6 @@ type ResumeVaultProps = {
   resumes?: Resume[];
 };
 
-// Repeat the fixture only for the vault's scrolling UI preview.
 const previewResumes: Resume[] = Array.from({ length: 10 }, (_, index) =>
   mockResumes.map((resume) => ({ ...resume, id: `${resume.id}-preview-${index}` })),
 ).flat();
@@ -29,7 +30,20 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [uploadedResumes, setUploadedResumes] = useState<Resume[]>([]);
-  const visibleResumes = [...uploadedResumes, ...resumes];
+  // `resumes` comes in as a prop, so deletions are tracked here and filtered out.
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
+
+  const visibleResumes = [...uploadedResumes, ...resumes].filter(
+    (resume) => !deletedIds.has(resume.id),
+  );
+
+  const handleDeleted = useCallback((deleted: Resume) => {
+    setDeletedIds((current) => new Set(current).add(deleted.id));
+    setUploadedResumes((current) => current.filter((resume) => resume.id !== deleted.id));
+    setNotice(`Deleted ${deleted.name}.`);
+  }, []);
+
+  const resumeDelete = useResumeDelete(handleDeleted);
 
   async function handleDownload(resume: Resume) {
     setDownloadingId(resume.id);
@@ -45,6 +59,16 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
   function placeholder(action: string, name: string) {
     setNotice(`${action} for ${name} is not available yet.`);
     setOpenActions(null);
+  }
+
+  function handleAction(action: string, resume: Resume) {
+    if (action === 'Delete') {
+      setOpenActions(null);
+      setNotice('');
+      resumeDelete.request(resume);
+      return;
+    }
+    placeholder(action, resume.name);
   }
 
   return (
