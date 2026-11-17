@@ -63,7 +63,7 @@ export function scanFormFields(): DetectedField[] {
 function isRelevantField(field: FieldType): boolean {
     // Filter out fields that are not relevant for data collection
     const irrelevantTypes = ["hidden", "submit", "reset", "button", "image"];
-    if (isHidden(field) || field.matches(":disabled")) {
+    if (isHidden(field) || field.matches(":disabled") || isSensitiveField(field)) {
         return false;
     }
     if (field instanceof HTMLInputElement && irrelevantTypes.includes(field.type)) {
@@ -101,4 +101,58 @@ function isHidden(field: FieldType): boolean {
     }
 
     return false;
+}
+
+function isSensitiveField(field: FieldType): boolean {
+    const sensitiveTerms = [
+        "ssn",
+        "social security",
+        "date of birth",
+        "birth date",
+        "birthdate",
+        "birthday",
+        "dob",
+        "passport number",
+        "driver's license",
+        "drivers license",
+        "routing number",
+        "bank account",
+        "credit card",
+        "cvv"
+    ];
+
+    const sensitiveAutocomplete = [
+        "bday",
+        "bday-day",
+        "bday-month",
+        "bday-year",
+        "cc-number",
+        "cc-csc",
+        "cc-exp",
+        "cc-exp-month",
+        "cc-exp-year",
+        "current-password",
+        "new-password",
+        "one-time-code"
+    ];
+
+    if (field instanceof HTMLInputElement && field.type === "password") {
+        return true;
+    }
+
+    const autocomplete = field.getAttribute("autocomplete") ?? "";
+    if (autocomplete.toLowerCase().split(/\s+/).some(token => sensitiveAutocomplete.includes(token))) {
+        return true;
+    }
+
+    // Combine identifying attributes
+    const fieldText = [
+        getFieldLabel(field),
+        field.getAttribute("name") ?? "",
+        field.id,
+        field.getAttribute("placeholder") ?? ""
+    ].join(" ").toLowerCase();
+
+    // Check for sensitive keywords
+    return sensitiveTerms.some(term => fieldText.includes(term));
 }
