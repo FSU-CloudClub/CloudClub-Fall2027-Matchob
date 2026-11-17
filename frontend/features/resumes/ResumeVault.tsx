@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { mockResumes } from '../../mocks/resumes';
 import type { Resume } from '../../types';
 import pdfIcon from '../../assets/icons/file-earmark-pdf.svg';
 import { ResumeUpload } from './ResumeUpload';
+import { ResumeDeleteDialog } from './ResumeDeleteDialog';
+import { useResumeDelete } from './useResumeDelete';
 import './ResumeVault.css';
 
 const uploadDate = new Intl.DateTimeFormat('en-US', {
@@ -16,7 +18,6 @@ type ResumeVaultProps = {
   resumes?: Resume[];
 };
 
-// Repeat the fixture only for the vault's scrolling UI preview.
 const previewResumes: Resume[] = Array.from({ length: 10 }, (_, index) =>
   mockResumes.map((resume) => ({ ...resume, id: `${resume.id}-preview-${index}` })),
 ).flat();
@@ -25,11 +26,34 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
   const [openActions, setOpenActions] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const [uploadedResumes, setUploadedResumes] = useState<Resume[]>([]);
-  const visibleResumes = [...uploadedResumes, ...resumes];
+  // `resumes` comes in as a prop, so deletions are tracked here and filtered out.
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
+
+  const visibleResumes = [...uploadedResumes, ...resumes].filter(
+    (resume) => !deletedIds.has(resume.id),
+  );
+
+  const handleDeleted = useCallback((deleted: Resume) => {
+    setDeletedIds((current) => new Set(current).add(deleted.id));
+    setUploadedResumes((current) => current.filter((resume) => resume.id !== deleted.id));
+    setNotice(`Deleted ${deleted.name}.`);
+  }, []);
+
+  const resumeDelete = useResumeDelete(handleDeleted);
 
   function placeholder(action: string, name: string) {
     setNotice(`${action} for ${name} is not available yet.`);
     setOpenActions(null);
+  }
+
+  function handleAction(action: string, resume: Resume) {
+    if (action === 'Delete') {
+      setOpenActions(null);
+      setNotice('');
+      resumeDelete.request(resume);
+      return;
+    }
+    placeholder(action, resume.name);
   }
 
   return (
@@ -82,7 +106,7 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                 {openActions === resume.id && (
                   <div className="resume-action-menu" id={`actions-${resume.id}`}>
                     {['Download', 'Edit', 'Delete'].map((action) => (
-                      <button key={action} onClick={() => placeholder(action, resume.name)}>{action}</button>
+                      <button key={action} onClick={() => handleAction(action, resume)}>{action}</button>
                     ))}
                   </div>
                 )}
@@ -95,6 +119,8 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
           <h3>No resumes exist</h3>
         </div>
       )}
+
+      <ResumeDeleteDialog {...resumeDelete} />
     </section>
   );
 }
