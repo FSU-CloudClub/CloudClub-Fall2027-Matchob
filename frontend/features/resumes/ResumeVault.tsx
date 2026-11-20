@@ -41,15 +41,12 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedResumes, setEditedResumes] = useState<Record<string, Resume>>({});
 
-  const visibleResumes = [...uploadedResumes, ...resumes].map(
-    (resume) => editedResumes[resume.id] ?? resume,
-  );
   // `resumes` comes in as a prop, so deletions are tracked here and filtered out.
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
 
-  const visibleResumes = [...uploadedResumes, ...resumes].filter(
-    (resume) => !deletedIds.has(resume.id),
-  );
+  const visibleResumes = [...uploadedResumes, ...resumes]
+    .filter((resume) => !deletedIds.has(resume.id))
+    .map((resume) => editedResumes[resume.id] ?? resume);
 
   const handleDeleted = useCallback((deleted: Resume) => {
     setDeletedIds((current) => new Set(current).add(deleted.id));
@@ -117,7 +114,7 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
         <ul className="resume-list" aria-label="Resume preview list">
           {visibleResumes.map((resume) => (
             <li key={resume.id} className="resume-row">
-              <button className="resume-thumbnail" aria-label={`Preview ${resume.name}`} onClick={() => placeholder('Preview', resume.name)}>
+              <button className="resume-thumbnail" aria-label={`Preview ${resume.name}`} onClick={() => void openResumePreview(resume).catch(() => setNotice('Could not open preview. Please try again.'))}>
                 <img
                   className="resume-file-icon"
                   src={FILE_ICONS[kindFromContentType(resume.contentType)]}
@@ -139,7 +136,7 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                   />
                 ) : (
                   <>
-                <h3><button className="resume-name" onClick={() => placeholder('Preview', resume.name)}>{resume.name}</button></h3>
+                <h3><button className="resume-name" onClick={() => void openResumePreview(resume).catch(() => setNotice('Could not open preview. Please try again.'))}>{resume.name}</button></h3>
                 <p className="resume-upload-date">
                   <time dateTime={resume.uploadedAt}>{uploadDate.format(new Date(resume.uploadedAt))}</time>
                 </p>
@@ -162,14 +159,15 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                 <button className="resume-more" aria-label={`Actions for ${resume.name}`} aria-expanded={openActions === resume.id} aria-controls={`actions-${resume.id}`} onClick={() => setOpenActions(openActions === resume.id ? null : resume.id)}>⋯</button>
                 {openActions === resume.id && (
                   <div className="resume-action-menu" id={`actions-${resume.id}`}>
-                    {['Download', 'Edit', 'Delete'].map((action) => (
+                    <button disabled={downloadingId !== null} onClick={() => void handleDownload(resume)}>{downloadingId === resume.id ? 'Preparing…' : 'Download'}</button>
+                    {['Edit', 'Delete'].map((action) => (
                       <button key={action} onClick={() => {
                         if (action === 'Edit') {
                           setEditingId(resume.id);
                           setOpenActions(null);
                           setNotice('');
                         } else {
-                          placeholder(action, resume.name);
+                          handleAction(action, resume);
                         }
                       }}>{action}</button>
                     ))}
@@ -185,6 +183,8 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
         </div>
       )}
       </>}
+
+      <ResumeDeleteDialog {...resumeDelete} />
     </section>
   );
 }
