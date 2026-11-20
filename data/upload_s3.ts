@@ -87,8 +87,7 @@ export async function uploadPdf(file: File, presignedURL: string): Promise<void>
 }
 
 // Main upload function
-export async function handleResumeUpload(file: File, config: UploadConfig = {apiBaseURL: "http://localhost:3001",
-    localUserId: "12345"}): Promise<UploadResult> {
+export async function handleResumeUpload(file: File, config: UploadConfig): Promise<UploadResult> {
     validateFile(file);
     const { uploadUrl, resumeId } = await getPresignedURL(file, config);
     await uploadPdf(file, uploadUrl);
@@ -96,5 +95,4 @@ export async function handleResumeUpload(file: File, config: UploadConfig = {api
         key: resumeId,
         contentType: "application/pdf"
     };
-
 }
