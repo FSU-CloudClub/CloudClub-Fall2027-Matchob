@@ -41,15 +41,12 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editedResumes, setEditedResumes] = useState<Record<string, Resume>>({});
 
-  const visibleResumes = [...uploadedResumes, ...resumes].map(
-    (resume) => editedResumes[resume.id] ?? resume,
-  );
   // `resumes` comes in as a prop, so deletions are tracked here and filtered out.
   const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
 
-  const visibleResumes = [...uploadedResumes, ...resumes].filter(
-    (resume) => !deletedIds.has(resume.id),
-  );
+  const visibleResumes = [...uploadedResumes, ...resumes]
+    .map((resume) => editedResumes[resume.id] ?? resume)
+    .filter((resume) => !deletedIds.has(resume.id));
 
   const handleDeleted = useCallback((deleted: Resume) => {
     setDeletedIds((current) => new Set(current).add(deleted.id));
