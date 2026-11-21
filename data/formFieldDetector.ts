@@ -105,6 +105,7 @@ function isHidden(field: FieldType): boolean {
 
 function isSensitiveField(field: FieldType): boolean {
     const sensitiveTerms = [
+        // Personal identification
         "ssn",
         "social security",
         "date of birth",
@@ -115,10 +116,39 @@ function isSensitiveField(field: FieldType): boolean {
         "passport number",
         "driver's license",
         "drivers license",
+
+        // Financial information
         "routing number",
         "bank account",
         "credit card",
-        "cvv"
+        "cvv",
+
+        // EEO and demographic information
+        "eeo",
+        "equal employment opportunity",
+        "race",
+        "ethnicity",
+        "gender",
+        "sex",
+        "sexual orientation",
+        "gender identity",
+        "demographic",
+
+        // Disability status
+        "disability",
+        "disabilities",
+
+        // Veteran status
+        "veteran",
+        "military status",
+
+        // Salary and compensation
+        "salary",
+        "compensation",
+        "expected pay",
+        "desired pay",
+        "pay rate",
+        "wage"
     ];
 
     const sensitiveAutocomplete = [
@@ -134,6 +164,7 @@ function isSensitiveField(field: FieldType): boolean {
         "current-password",
         "new-password",
         "one-time-code"
+        
     ];
 
     if (field instanceof HTMLInputElement && field.type === "password") {
@@ -144,15 +175,18 @@ function isSensitiveField(field: FieldType): boolean {
     if (autocomplete.toLowerCase().split(/\s+/).some(token => sensitiveAutocomplete.includes(token))) {
         return true;
     }
-
-    // Combine identifying attributes
+    
     const fieldText = [
         getFieldLabel(field),
-        field.getAttribute("name") ?? "",
+        field.name,
         field.id,
         field.getAttribute("placeholder") ?? ""
-    ].join(" ").toLowerCase();
+    ]
+    .join(" ")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]/g, " ")
+    .toLowerCase();
 
-    // Check for sensitive keywords
-    return sensitiveTerms.some(term => fieldText.includes(term));
+    return sensitiveTerms.some(term => ` ${fieldText} `.includes(` ${term} `));
 }

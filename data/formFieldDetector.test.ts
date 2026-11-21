@@ -157,3 +157,38 @@ describe("Scanning and visibility", () => {
     expect(submitted).toBe(false);
   });
 });
+
+// Sensitive field filtering
+describe("Sensitive field filtering", () => {
+  it.each([
+    ["SSN", '<input name="ssn">'],
+    ["Date of birth", '<input name="dateOfBirth">'],
+    ["Password", '<input type="password">'],
+    ["Credit card", '<input autocomplete="cc-number">'],
+    ["EEO", '<input name="eeoQuestion">'],
+    ["Race", '<select name="race"></select>'],
+    ["Ethnicity", '<select name="ethnicity"></select>'],
+    ["Gender", '<select name="gender"></select>'],
+    ["Disability", '<select name="disability_status"></select>'],
+    ["Veteran", '<select name="veteranStatus"></select>'],
+    ["Salary", '<input name="desiredSalary">'],
+    ["Compensation", '<input aria-label="Expected compensation">'],
+  ])("excludes %s fields", (_case, html) => {
+    mount(`${html}<input name="email">`);
+    expect(names()).toEqual(["email"]);
+  });
+
+  it("does not exclude fields containing partial keyword matches", () => {
+    mount(`
+      <input name="adobeExperience">
+      <input name="traceability">
+      <input name="email">
+    `);
+
+    expect(names()).toEqual([
+      "adobeExperience",
+      "traceability",
+      "email"
+    ]);
+  });
+});
