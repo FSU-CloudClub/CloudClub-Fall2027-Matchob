@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
-import { mockResumes } from '../../mocks/resumes';
+import { useCallback, useEffect, useState } from 'react';
+import { resumeApi } from '../../services/resumeApi';
+import { downloadResume } from '../../services/resumeFiles';
 import type { Resume } from '../../types';
 import pdfIcon from '../../assets/icons/file-earmark-pdf.svg';
 import wordIcon from '../../assets/icons/file-earmark-word.svg';
@@ -7,10 +8,9 @@ import { kindFromContentType, type ResumeFileKind } from './resumeFileTypes';
 import { ResumeUpload } from './ResumeUpload';
 import { ResumeDeleteDialog } from './ResumeDeleteDialog';
 import { useResumeDelete } from './useResumeDelete';
-import './ResumeVault.css';
 import { ResumeTagsRename } from './ResumeTagsRename';
-import { downloadResume } from '../../services/resumeFiles';
 import { openResumePreview } from './ResumePreviewDownload';
+import './ResumeVault.css';
 
 const uploadDate = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -24,40 +24,70 @@ const FILE_ICONS: Record<ResumeFileKind, string> = {
   docx: wordIcon,
 };
 
-type ResumeVaultProps = {
-  resumes?: Resume[];
-};
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
-const previewResumes: Resume[] = Array.from({ length: 10 }, (_, index) =>
-  mockResumes.map((resume) => ({ ...resume, id: `${resume.id}-preview-${index}` })),
-).flat();
-
-export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {}) {
+export function ResumeVault() {
   const [view, setView] = useState<'saved' | 'upload'>('saved');
+  const [resumes, setResumes] = useState<Resume[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [openActions, setOpenActions] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [notice, setNotice] = useState('');
-  const [uploadedResumes, setUploadedResumes] = useState<Resume[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editedResumes, setEditedResumes] = useState<Record<string, Resume>>({});
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [notice, setNotice] = useState('');
 
-  const visibleResumes = [...uploadedResumes, ...resumes].map(
-    (resume) => editedResumes[resume.id] ?? resume,
-  );
-  // `resumes` comes in as a prop, so deletions are tracked here and filtered out.
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(() => new Set());
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      setResumes(await resumeApi.getResumes());
+      setLoadFailed(false);
+      setNotice('');
+    } catch (error) {
+      setLoadFailed(true);
+      setNotice(errorMessage(error, 'Could not load resumes.'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const visibleResumes = [...uploadedResumes, ...resumes].filter(
-    (resume) => !deletedIds.has(resume.id),
-  );
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const handleDeleted = useCallback((deleted: Resume) => {
-    setDeletedIds((current) => new Set(current).add(deleted.id));
-    setUploadedResumes((current) => current.filter((resume) => resume.id !== deleted.id));
+    setResumes((current) => current.filter((resume) => resume.id !== deleted.id));
     setNotice(`Deleted ${deleted.name}.`);
   }, []);
 
   const resumeDelete = useResumeDelete(handleDeleted);
+
+  function replaceResume(updated: Resume) {
+    setResumes((current) => current.map((resume) => (resume.id === updated.id ? updated : resume)));
+  }
+
+  async function handleSave(original: Resume, edited: Resume) {
+    setSavingId(original.id);
+    setNotice('');
+    try {
+      // Apply each response immediately, so a later failure keeps earlier changes visible.
+      if (edited.name !== original.name) {
+        replaceResume(await resumeApi.renameResume(original.id, edited.name));
+      }
+      const tagsChanged =
+        edited.tags.length !== original.tags.length ||
+        edited.tags.some((tag, index) => tag !== original.tags[index]);
+      if (tagsChanged) {
+        replaceResume(await resumeApi.updateTags(original.id, edited.tags));
+      }
+      setEditingId(null);
+      setNotice(`Updated ${edited.name}.`);
+    } catch (error) {
+      setNotice(errorMessage(error, 'Could not save changes. Please try again.'));
+    } finally {
+      setSavingId(null);
+    }
+  }
 
   async function handleDownload(resume: Resume) {
     setDownloadingId(resume.id);
@@ -66,23 +96,28 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
     try {
       await downloadResume(resume.id, resume.name);
       setNotice('Download started.');
-    } catch { setNotice('Download failed. Please try again from the resume menu.'); }
-    finally { setDownloadingId(null); }
+    } catch (error) {
+      setNotice(errorMessage(error, 'Download failed. Please try again from the resume menu.'));
+    } finally {
+      setDownloadingId(null);
+    }
   }
 
-  function placeholder(action: string, name: string) {
-    setNotice(`${action} for ${name} is not available yet.`);
+  function handlePreview(resume: Resume) {
     setOpenActions(null);
-  }
-
-  function handleAction(action: string, resume: Resume) {
-    if (action === 'Delete') {
-      setOpenActions(null);
-      setNotice('');
-      resumeDelete.request(resume);
+    if (kindFromContentType(resume.contentType) !== 'pdf') {
+      setNotice('Preview is only available for PDFs. Use Download from the resume menu instead.');
       return;
     }
-    placeholder(action, resume.name);
+    void openResumePreview(resume).catch(() => setNotice('Could not open preview. Please try again.'));
+  }
+
+  function handleAction(action: 'Download' | 'Edit' | 'Delete', resume: Resume) {
+    setOpenActions(null);
+    setNotice('');
+    if (action === 'Download') void handleDownload(resume);
+    else if (action === 'Edit') setEditingId(resume.id);
+    else resumeDelete.request(resume);
   }
 
   return (
@@ -95,29 +130,24 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
         <button type="button" aria-pressed={view === 'upload'} onClick={() => setView('upload')}>Upload new</button>
       </div>
 
-      {view === 'upload' && <ResumeUpload onUploadComplete={(result, file) => {
-        setUploadedResumes((current) => [{
-          id: result.key,
-          name: file.name,
-          tags: [],
-          contentType: result.contentType,
-          uploadedAt: new Date().toISOString(),
-        }, ...current]);
+      {view === 'upload' && <ResumeUpload onUploadComplete={() => {
         setView('saved');
+        void refresh();
       }} />}
 
       {view === 'saved' && <>
       <div className="resume-vault-summary">
-        <span>{visibleResumes.length} {visibleResumes.length === 1 ? 'resume' : 'resumes'}</span>
+        <span>{resumes.length} {resumes.length === 1 ? 'resume' : 'resumes'}</span>
+        <button type="button" disabled={loading} onClick={() => void refresh()}>Refresh</button>
       </div>
 
       <p className="resume-notice" role="status">{notice}</p>
 
-      {visibleResumes.length > 0 ? (
-        <ul className="resume-list" aria-label="Resume preview list">
-          {visibleResumes.map((resume) => (
+      {resumes.length > 0 ? (
+        <ul className="resume-list" aria-label="Resumes">
+          {resumes.map((resume) => (
             <li key={resume.id} className="resume-row">
-              <button className="resume-thumbnail" aria-label={`Preview ${resume.name}`} onClick={() => placeholder('Preview', resume.name)}>
+              <button className="resume-thumbnail" aria-label={`Preview ${resume.name}`} onClick={() => handlePreview(resume)}>
                 <img
                   className="resume-file-icon"
                   src={FILE_ICONS[kindFromContentType(resume.contentType)]}
@@ -130,16 +160,12 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                   <ResumeTagsRename
                     resume={resume}
                     initialEditing
-                    onSave={(updatedResume) => {
-                      setEditedResumes((current) => ({ ...current, [updatedResume.id]: updatedResume }));
-                      setEditingId(null);
-                      setNotice(`Updated ${updatedResume.name}.`);
-                    }}
+                    onSave={(edited) => { if (savingId !== resume.id) void handleSave(resume, edited); }}
                     onCancel={() => setEditingId(null)}
                   />
                 ) : (
                   <>
-                <h3><button className="resume-name" onClick={() => placeholder('Preview', resume.name)}>{resume.name}</button></h3>
+                <h3><button className="resume-name" onClick={() => handlePreview(resume)}>{resume.name}</button></h3>
                 <p className="resume-upload-date">
                   <time dateTime={resume.uploadedAt}>{uploadDate.format(new Date(resume.uploadedAt))}</time>
                 </p>
@@ -162,16 +188,12 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
                 <button className="resume-more" aria-label={`Actions for ${resume.name}`} aria-expanded={openActions === resume.id} aria-controls={`actions-${resume.id}`} onClick={() => setOpenActions(openActions === resume.id ? null : resume.id)}>⋯</button>
                 {openActions === resume.id && (
                   <div className="resume-action-menu" id={`actions-${resume.id}`}>
-                    {['Download', 'Edit', 'Delete'].map((action) => (
-                      <button key={action} onClick={() => {
-                        if (action === 'Edit') {
-                          setEditingId(resume.id);
-                          setOpenActions(null);
-                          setNotice('');
-                        } else {
-                          placeholder(action, resume.name);
-                        }
-                      }}>{action}</button>
+                    {(['Download', 'Edit', 'Delete'] as const).map((action) => (
+                      <button
+                        key={action}
+                        disabled={action === 'Download' && downloadingId === resume.id}
+                        onClick={() => handleAction(action, resume)}
+                      >{action}</button>
                     ))}
                   </div>
                 )}
@@ -181,10 +203,12 @@ export function ResumeVault({ resumes = previewResumes }: ResumeVaultProps = {})
         </ul>
       ) : (
         <div className="resume-vault-empty">
-          <h3>No resumes exist</h3>
+          <h3>{loading ? 'Loading resumes…' : loadFailed ? 'Could not load resumes' : 'No resumes yet'}</h3>
         </div>
       )}
       </>}
+
+      <ResumeDeleteDialog {...resumeDelete} />
     </section>
   );
 }

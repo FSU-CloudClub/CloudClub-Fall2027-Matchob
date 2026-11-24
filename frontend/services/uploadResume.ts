@@ -1,25 +1,32 @@
+import { resumeApi } from './resumeApi';
+
 export interface UploadResult {
-  key: string;
+  resumeId: string;
   contentType: string;
 }
 
-const MOCK_DELAY_MS = 1500;
-
-// Mirrors s3_key() in backend/SAMproject/src/s3-pipeline/resume_helpers.py.
-const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
-  'application/pdf': 'pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-};
-
-// `contentType` must be the canonical MIME type from validation. The real upload
-// sends it to POST /resumes/upload-url and as the Content-Type of the S3 PUT;
-// the two must match or S3 rejects the signed request.
+// `contentType` must be the canonical MIME type from validation. It is sent to
+// POST /resumes/upload-url and as the Content-Type of the S3 PUT; the two must
+// match or S3 rejects the signed request.
 export async function uploadResume(file: File, contentType: string): Promise<UploadResult> {
-  await new Promise((resolve) => setTimeout(resolve, MOCK_DELAY_MS));
-  if (file.name.toLowerCase().includes('fail')) {
-    throw new Error('Mock upload failure');
+  const { resumeId, uploadUrl } = await resumeApi.getUploadUrl(file.name, contentType);
+  try {
+    // Presigned S3 requests must not include the API's local-user header.
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: { 'Content-Type': contentType },
+      body: file,
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!response.ok) throw new Error(`File upload failed (${response.status}).`);
+  } catch {
+    // The backend creates metadata before uploading. Remove it on failure.
+    try {
+      await resumeApi.deleteResume(resumeId);
+    } catch {
+      throw new Error('Upload failed and cleanup failed. Refresh the Vault and delete the incomplete resume before retrying.');
+    }
+    throw new Error('File upload failed. Check that S3 is reachable and try again.');
   }
-
-  const extension = EXTENSION_BY_CONTENT_TYPE[contentType] ?? 'pdf';
-  return { key: `mock/resumes/${crypto.randomUUID()}.${extension}`, contentType };
+  return { resumeId, contentType };
 }

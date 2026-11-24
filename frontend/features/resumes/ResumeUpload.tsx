@@ -9,9 +9,8 @@ import {
   isLegacyWordFile,
 } from './resumeFileTypes';
 import './ResumeUpload.css';
-import { saveLocalFile } from '../../services/resumeFiles';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB placeholder: confirm with Backend/AWS
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // API contract limit
 const MAX_RESUME_MB = MAX_FILE_SIZE / (1024 * 1024);
 
 type UploadState =
@@ -70,8 +69,12 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       setUploadState({ status: 'success', file });
       onUploadComplete?.(result, file);
     } catch (error) {
-      console.error('Upload failed:', error);
-      setUploadState({ status: 'failure', file, contentType, message: 'Upload failed. Please try again.' });
+      setUploadState({
+        status: 'failure',
+        file,
+        contentType,
+        message: error instanceof Error ? error.message : 'Upload failed. Please try again.',
+      });
     }
   }
 
@@ -198,7 +201,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
 
       {state.status === 'success' && (
         <p className="resume-upload__success" role="status">
-          Added {state.file.name} to this preview. It is not saved yet.
+          Uploaded {state.file.name}.
         </p>
       )}
 

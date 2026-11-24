@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-WXT opens Chrome with the extension loaded. Click the Matchob extension icon to open the popup. `Get Started`, `Back`, and `Next` navigate the preview screens. The Resume Vault includes a PDF picker and drag-and-drop upload preview; uploads appear while the Vault screen stays open but are not saved to a backend. On Windows PowerShell, use `npm.cmd` in place of `npm` if script execution is disabled.
+WXT opens Chrome with the extension loaded. Click the Matchob extension icon to open the popup. `Get Started`, `Back`, and `Next` navigate the preview screens. The Resume Vault includes a PDF picker and drag-and-drop upload preview; the Vault now calls the local backend. Start `python3 dev.py` from `backend/SAMproject` before testing resumes. See [local resume integration](services/README.md). On Windows PowerShell, use `npm.cmd` in place of `npm` if script execution is disabled.
 
 ## Load and test in Chrome
 
@@ -68,26 +68,20 @@ Chrome is the only target scripted for now. WXT supports separate browser builds
 | Resume Parsing Integration | Add a parsing service after its API contract is agreed |
 | Autofill Script Integration | Add a WXT content script when the interaction contract is agreed |
 
-The popup has only local preview navigation. No background or content script is registered yet, and no live backend requests are made.
+The Resume Vault uses the local backend; recommendations remain mocked. See [local resume integration](services/README.md) for setup and testing.
 
-## Resume preview and download demo
+## Resume preview and download
 
 The Vault has separate **Saved resumes** and **Upload new** views. Clicking a resume name or thumbnail opens
-`resume-preview.html` in a new extension tab. Download is in each row's three-dot menu and saves a PDF directly.
-Sample rows use `public/samples/sample-resume.pdf` (copied from the repository's
-Jordan resume fixture). Uploaded PDFs are stored locally in IndexedDB so the
-preview tab can read the actual chosen file. Upload metadata remains in popup
-memory for this demo; reopening the popup resets its list. No files are sent to
-Backend by this flow.
+`resume-preview.html` in a new extension tab. Download is in each row's three-dot menu.
 
-`services/resumeFiles.ts` is the file resolver boundary to replace when Backend
-provides file URLs. It handles file fetching separately from the React UI.
+`services/resumeFiles.ts` fetches file bytes through the backend's presigned download URL
+(`GET /resumes/{id}/download-url`), separately from the React UI.
 
-Manual checks after building and reloading the extension:
+Manual checks after starting the backend, building, and reloading the extension:
 
 - Get Started → Saved resumes: scroll the list without the upload area above it.
-- Preview a sample row: a new tab displays a PDF with the browser viewer’s built-in controls.
-- Download a row: the saved PDF opens in a PDF reader.
-- Upload new: choose a PDF, then preview/download that same file from Saved resumes.
-- Open `resume-preview.html?id=missing`: verify the error, Retry, and download failure state.
+- Upload new: choose a PDF or DOCX, then preview (PDF only) and download it from Saved resumes.
+- Download a row: the saved file opens in its reader.
+- Open `resume-preview.html?id=missing`: verify the error and Retry state.
 - Browser PDF rendering can depend on Chrome settings; the page provides a download fallback.
