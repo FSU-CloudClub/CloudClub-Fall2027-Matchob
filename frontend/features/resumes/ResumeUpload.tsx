@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { Button } from '../../components/Button';
 import { uploadResume, type UploadResult } from '../../services/uploadResume';
+import {
+  RESUME_ACCEPT,
+  RESUME_FILE_TYPES,
+  RESUME_TYPES_LABEL,
+  getResumeFileKind,
+  isLegacyWordFile,
+} from './resumeFileTypes';
 import './ResumeUpload.css';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // API contract limit
@@ -9,17 +16,25 @@ const MAX_RESUME_MB = MAX_FILE_SIZE / (1024 * 1024);
 type UploadState =
   | { status: 'idle' }
   | { status: 'invalid'; message: string }
-  | { status: 'uploading'; file: File }
+  | { status: 'uploading'; file: File; contentType: string }
   | { status: 'success'; file: File }
-  | { status: 'failure'; file: File; message: string };
+  | { status: 'failure'; file: File; contentType: string; message: string };
 
-type ValidationResult = { valid: true } | { valid: false; message: string };
+type ValidationResult =
+  | { valid: true; contentType: string }
+  | { valid: false; message: string };
 
 function validateFile(file: File): ValidationResult {
-  const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+  const kind = getResumeFileKind(file);
 
-  if (!isPdf) {
-    return { valid: false, message: 'Invalid file type. Please select a PDF file.' };
+  if (!kind) {
+    if (isLegacyWordFile(file)) {
+      return {
+        valid: false,
+        message: 'Older Word files (.doc) are not supported. Save it as .docx or PDF and try again.',
+      };
+    }
+    return { valid: false, message: `Invalid file type. Please select a ${RESUME_TYPES_LABEL} file.` };
   }
   if (file.size === 0) {
     return { valid: false, message: 'File is empty. Please select a non-empty file.' };
@@ -27,7 +42,8 @@ function validateFile(file: File): ValidationResult {
   if (file.size > MAX_FILE_SIZE) {
     return { valid: false, message: `File size exceeds ${MAX_RESUME_MB} MB limit.` };
   }
-  return { valid: true };
+  // Send the canonical MIME type, not file.type, which can be empty or vary by OS.
+  return { valid: true, contentType: RESUME_FILE_TYPES[kind].mimeType };
 }
 
 interface ResumeUploadProps {
@@ -46,14 +62,19 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
     if (!isUploading) fileInputRef.current?.click();
   }
 
-  async function startUpload(file: File) {
-    setUploadState({ status: 'uploading', file });
+  async function startUpload(file: File, contentType: string) {
+    setUploadState({ status: 'uploading', file, contentType });
     try {
-      const result = await uploadResume(file);
+      const result = await uploadResume(file, contentType);
       setUploadState({ status: 'success', file });
       onUploadComplete?.(result, file);
     } catch (error) {
-      setUploadState({ status: 'failure', file, message: error instanceof Error ? error.message : 'Upload failed. Please try again.' });
+      setUploadState({
+        status: 'failure',
+        file,
+        contentType,
+        message: error instanceof Error ? error.message : 'Upload failed. Please try again.',
+      });
     }
   }
 
@@ -63,7 +84,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       setUploadState({ status: 'invalid', message: result.message });
       return;
     }
-    void startUpload(file);
+    void startUpload(file, result.contentType);
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -143,7 +164,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept=".pdf,application/pdf"
+        accept={RESUME_ACCEPT}
         hidden
       />
 
@@ -162,12 +183,15 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
         ) : (
           <>
             <span className="resume-upload__title">
-              {isDragging ? 'Drop to upload' : 'Drag a PDF here, or'}
+              {isDragging ? 'Drop to upload' : `Drag a ${RESUME_TYPES_LABEL} here, or`}
             </span>
-          <span className="resume-upload__action">Choose a PDF to upload</span>
-        </>
-      )}
-    </button>
+            <span className="resume-upload__action">Choose a file to upload</span>
+            <span className="resume-upload__hint">
+              {RESUME_TYPES_LABEL}, up to {MAX_RESUME_MB} MB
+            </span>
+          </>
+        )}
+      </button>
 
       {state.status === 'invalid' && (
         <p className="resume-upload__error" role="alert">
@@ -184,7 +208,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       {state.status === 'failure' && (
         <div className="resume-upload__error" role="alert">
           <p>{state.message}</p>
-          <Button variant="secondary" onClick={() => void startUpload(state.file)}>
+          <Button variant="secondary" onClick={() => void startUpload(state.file, state.contentType)}>
             Retry
           </Button>
         </div>

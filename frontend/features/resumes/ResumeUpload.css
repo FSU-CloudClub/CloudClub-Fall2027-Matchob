@@ -27,6 +27,7 @@
 .resume-upload__title { color: var(--text); font-size: 18px; font-weight: 500; }
 .resume-upload__action { color: var(--glass-gold-text); font-size: 13px; }
 .resume-upload__dropzone:hover .resume-upload__action { text-decoration: underline; }
+.resume-upload__hint { color: var(--muted); font-size: 12px; }
 .resume-upload__uploading { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; }
 
 .resume-upload .resume-upload__error { color: #a43b2f; }
