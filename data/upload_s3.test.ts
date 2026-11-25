@@ -1,192 +1,139 @@
-import { describe, it, expect, vi } from "vitest";
-import { validateFile, getPresignedURL, uploadPdf, handleResumeUpload } from "./upload_s3.js";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-describe("validateFile()", () => {
-    it("accepts a valid PDF", () => {
-        const file = new File(["PDF content"], "resume.pdf",{ 
-            type: "application/pdf" 
-        });
-        expect(() => validateFile(file)).not.toThrow();
-    });
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { uploadResume } from "../frontend/services/uploadResume.js";
+const PDF_TYPE = "application/pdf";
+const DOCX_TYPE =
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-    it("rejects non-PDF files", () => { const file = new File(["text content"], "resume.txt",{ 
-        type: "text/plain" 
+describe("uploadResume()", () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
     });
-
-    expect(() => validateFile(file)).toThrow("Only PDF files allowed!");
+    afterEach(() => {
+        vi.useRealTimers();
     });
-
-    it("rejects empty PDFs", () => {const file = new File([], "empty.pdf",{ 
-        type: "application/pdf" 
-    });
-
-    expect(() => validateFile(file)).toThrow("File is empty");
-    });
-});
-describe("getPresignedURL()", () => {
-    it("successfully retrieves a presigned URL", async () => {
+    it("successfully uploads a PDF resume", async () => {
         const file = new File(
             ["PDF content"],
             "resume.pdf",
-            { type: "application/pdf" }
+            { type: PDF_TYPE }
         );
 
-        const mockResponse = {
-            uploadUrl: "https://example.com/upload",
-            resumeId: "resume-123"
-        };
+        const promise = uploadResume(file, PDF_TYPE);
 
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok: true,
-            json: async () => mockResponse
-        });
+        await vi.advanceTimersByTimeAsync(1500);
 
-        vi.stubGlobal("fetch", fetchMock);
+        const result = await promise;
 
-        try {
-            const result = await getPresignedURL(file, {
-                apiBaseURL: "http://localhost:3001",
-                localUserId: "12345"
-            });
-
-            expect(result).toEqual(mockResponse);
-
-            expect(fetchMock).toHaveBeenCalledWith(
-                "http://localhost:3001/resumes/upload-url",
-                expect.objectContaining({
-                    method: "POST",
-                    headers: expect.objectContaining({
-                        "Content-Type": "application/json",
-                        "X-Local-User": "12345"
-                    })
-                })
-            );
-        } finally {
-            vi.unstubAllGlobals();
-        }
+        expect(result.contentType).toBe(PDF_TYPE);
+        expect(result.key).toMatch(/^mock\/resumes\/.+\.pdf$/);
     });
-});
-describe("uploadPdf()", () => {
-    it("successfully uploads a PDF using PUT", async () => {
+
+    it("successfully uploads a DOCX resume", async () => {
+        const file = new File(
+            ["DOCX content"],
+            "resume.docx",
+            { type: DOCX_TYPE }
+        );
+
+        const promise = uploadResume(file, DOCX_TYPE);
+
+        await vi.advanceTimersByTimeAsync(1500);
+
+        const result = await promise;
+
+        expect(result.contentType).toBe(DOCX_TYPE);
+        expect(result.key).toMatch(/^mock\/resumes\/.+\.docx$/);
+    });
+
+    it("throws an error when the upload fails", async () => {
+        const file = new File(
+            ["PDF content"],
+            "fail-resume.pdf",
+            { type: PDF_TYPE }
+        );
+
+        const promise = uploadResume(file, PDF_TYPE);
+
+        const assertion = expect(promise)
+            .rejects.toThrow("Mock upload failure");
+
+        await vi.advanceTimersByTimeAsync(1500);
+
+        await assertion;
+    });
+
+    it("handles failure filenames regardless of capitalization", async () => {
+        const file = new File(
+            ["PDF content"],
+            "FAIL-resume.pdf",
+            { type: PDF_TYPE }
+        );
+
+        const promise = uploadResume(file, PDF_TYPE);
+
+        const assertion = expect(promise)
+            .rejects.toThrow("Mock upload failure");
+
+        await vi.advanceTimersByTimeAsync(1500);
+
+        await assertion;
+    });
+
+    it("generates unique keys for separate uploads", async () => {
         const file = new File(
             ["PDF content"],
             "resume.pdf",
-            { type: "application/pdf" }
+            { type: PDF_TYPE }
         );
 
-        const presignedURL = "https://example.com/upload";
+        const firstUpload = uploadResume(file, PDF_TYPE);
+        const secondUpload = uploadResume(file, PDF_TYPE);
 
-        const fetchMock = vi.fn().mockResolvedValue({
-            ok: true,
-            status: 200
-        });
+        await vi.advanceTimersByTimeAsync(1500);
 
-        vi.stubGlobal("fetch", fetchMock);
+        const result1 = await firstUpload;
+        const result2 = await secondUpload;
 
-        try {
-            await uploadPdf(file, presignedURL);
-
-            expect(fetchMock).toHaveBeenCalledWith(
-                presignedURL,
-                {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/pdf"
-                    },
-                    body: file
-                }
-            );
-        } finally {
-            vi.unstubAllGlobals();
-        }
-    });
-});
-it("throws an error when S3 upload fails", async () => {
-    const file = new File(
-        ["PDF content"],
-        "resume.pdf",
-        { type: "application/pdf" }
-    );
-
-    const fetchMock = vi.fn().mockResolvedValue({
-        ok: false,
-        status: 403
+        expect(result1.key).not.toBe(result2.key);
     });
 
-    vi.stubGlobal("fetch", fetchMock);
+    it("uses the canonical content type from validation", async () => {
+        const file = new File(
+            ["PDF content"],
+            "resume.pdf",
+            { type: "" }
+        );
 
-    try {
-        await expect(
-            uploadPdf(file, "https://example.com/upload")
-        ).rejects.toThrow("Failed to upload PDF: 403");
-    } finally {
-        vi.unstubAllGlobals();
-    }
-});
+        const promise = uploadResume(file, PDF_TYPE);
 
-describe("handleResumeUpload()", () => {
-    it("successfully uploads a real PDF resume", async () => {
-        // Load an actual PDF from the fixtures directory
+        await vi.advanceTimersByTimeAsync(1500);
+
+        const result = await promise;
+
+        expect(result.contentType).toBe(PDF_TYPE);
+        expect(result.key).toMatch(/\.pdf$/);
+    });
+
+    it("successfully uploads a real PDF fixture", async () => {
+        const { readFileSync } = await import("node:fs");
+        const { join } = await import("node:path");
+
         const buffer = readFileSync(
-            join(process.cwd(), "fixtures", "alex.pdf")
+                new URL("./fixtures/alex.pdf", import.meta.url)
         );
-
         const file = new File(
             [new Uint8Array(buffer)],
             "alex.pdf",
-            { type: "application/pdf" }
+            { type: PDF_TYPE }
         );
 
-        // Mock backend and S3 responses
-        const fetchMock = vi.fn()
-            .mockResolvedValueOnce({
-                ok: true,
-                json: async () => ({
-                    uploadUrl: "https://example.com/upload",
-                    resumeId: "resume-123"
-                })
-            })
-            .mockResolvedValueOnce({
-                ok: true,
-                status: 200
-            });
+        const promise = uploadResume(file, PDF_TYPE);
 
-        vi.stubGlobal("fetch", fetchMock);
+        await vi.advanceTimersByTimeAsync(1500);
 
-        try {
-            const result = await handleResumeUpload(file, {
-                apiBaseURL: "http://localhost:3001",
-                localUserId: "12345"
-            });
+        const result = await promise;
 
-            expect(result).toEqual({
-                key: "resume-123",
-                contentType: "application/pdf"
-            });
-
-            expect(fetchMock).toHaveBeenCalledTimes(2);
-
-            // First request: Get presigned URL
-            expect(fetchMock).toHaveBeenNthCalledWith(
-                1,
-                "http://localhost:3001/resumes/upload-url",
-                expect.objectContaining({
-                    method: "POST"
-                })
-            );
-
-            // Second request: Upload PDF
-            expect(fetchMock).toHaveBeenNthCalledWith(
-                2,
-                "https://example.com/upload",
-                expect.objectContaining({
-                    method: "PUT",
-                    body: file
-                })
-            );
-        } finally {
-            vi.unstubAllGlobals();
-        }
+        expect(result.contentType).toBe(PDF_TYPE);
+        expect(result.key).toMatch(/^mock\/resumes\/.+\.pdf$/);
     });
 });
